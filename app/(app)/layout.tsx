@@ -30,9 +30,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
           <img 
-            src="/owl-logo-5.svg" 
+            src="/owl-mascot.png" 
             alt="TeachWise" 
-            className="w-10 h-10 flex-shrink-0 rounded-xl shadow-sm"
+            className="w-10 h-10 flex-shrink-0 rounded-xl shadow-sm object-contain"
           />
           {sidebarOpen && (
             <div className="animate-fade-in">

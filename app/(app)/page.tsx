@@ -652,59 +652,32 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Hero Visual with Orbiting Elements */}
-            <div className="relative hidden md:block">
-              {/* Orbit Illustration */}
-              <div className="orbit-container">
-                <div className="orbit orbit-1">
-                  <div className="orbit-dot orbit-dot-1" />
+            {/* Hero Visual - Owl Mascot */}
+            <div className="relative hidden md:flex justify-center items-center">
+              <div className="relative">
+                {/* Glow effect behind owl */}
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/20 to-green-400/20 rounded-full blur-3xl scale-75" />
+                {/* Owl mascot image */}
+                <img 
+                  src="/owl-mascot.png" 
+                  alt="TeachWise AI Mascot" 
+                  className="relative w-72 h-72 object-contain drop-shadow-2xl"
+                />
+                {/* Sparkle decorations */}
+                <div className="absolute -top-4 -right-4 animate-bounce" style={{ animationDuration: '2s' }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="#F59E0B">
+                    <path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z" />
+                  </svg>
                 </div>
-                <div className="orbit orbit-2">
-                  <div className="orbit-dot orbit-dot-2" />
+                <div className="absolute bottom-8 -left-4 animate-bounce" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="#22C55E">
+                    <path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z" />
+                  </svg>
                 </div>
-                <div className="orbit orbit-3" style={{ width: '60%', height: '60%', top: '20%', left: '20%', borderRadius: '50%', border: '1px solid rgba(0, 212, 170, 0.1)', position: 'absolute', animation: 'spin 25s linear infinite' }} />
-              </div>
-
-              {/* Glow Rings */}
-              <div className="glow-ring glow-ring-1" />
-              <div className="glow-ring glow-ring-2" />
-              <div className="glow-ring glow-ring-3" />
-
-              <div className="relative glass rounded-2xl border border-[#30363D] p-6 space-y-4 pulse-glow-anim">
-                <div className="flex items-center gap-3 pb-4 border-b border-[#30363D]">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00D4AA] to-[#00D4AA]/60 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-[#0D1117]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-white">TeachWise AI</div>
-                    <div className="text-xs text-[#8B949E]">Online • Ready to help</div>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-[#00D4AA]/20 flex items-center justify-center text-[#00D4AA] text-sm">✧</div>
-                    <div className="flex-1 p-3 rounded-xl rounded-tl-none bg-[#1C2128] border border-[#30363D]">
-                      <p className="text-sm text-[#E6EDF3]"><TypewriterText text="I've prepared a Year 4 Fractions lesson plan aligned with AC9MFN04. Would you like me to add differentiation strategies?" delay={1000} /></p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 justify-end">
-                    <div className="flex-1 p-3 rounded-xl rounded-tr-none bg-[#00D4AA]/10 border border-[#00D4AA]/30">
-                      <p className="text-sm text-[#E6EDF3]">Yes, add extension tasks for advanced learners</p>
-                    </div>
-                    <div className="w-8 h-8 rounded-lg bg-[#8B949E]/20 flex items-center justify-center text-[#8B949E] text-sm">JD</div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-[#00D4AA]/20 flex items-center justify-center text-[#00D4AA] text-sm">✧</div>
-                    <div className="flex-1 p-3 rounded-xl rounded-tl-none bg-[#1C2128] border border-[#30363D]">
-                      <p className="text-sm text-[#E6EDF3]"><TypewriterText text="Done! I've added tiered extension tasks including real-world fraction problems and a challenge problem for your high achievers." delay={3000} /></p>
-                      <div className="mt-3 p-3 rounded-lg bg-[#0D1117] border border-[#30363D]">
-                        <p className="text-xs text-[#8B949E] mb-1">Lesson Plan • Year 4 Fractions</p>
-                        <p className="text-xs text-[#00D4AA]">✓ AC9MFN04 aligned • ✓ Differentiated • ✓ Ready to use</p>
-                      </div>
-                    </div>
-                  </div>
+                <div className="absolute top-1/3 -right-6 animate-bounce" style={{ animationDuration: '3s', animationDelay: '1s' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#8B5CF6">
+                    <path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z" />
+                  </svg>
                 </div>
               </div>
             </div>
