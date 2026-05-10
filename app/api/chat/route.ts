@@ -1,43 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const SYSTEM_PROMPT = `You are TeachWise AI, an Australian F-6 teaching assistant. You are a LOCAL, PRIVATE AI with NO internet access. You cannot search the web, access external websites, or retrieve information from outside your training data.
+const SYSTEM_PROMPT = `You are **TeachWise AI**, an expert Australian F-6 teaching assistant with deep knowledge of:
 
-**Your knowledge is LIMITED to:**
-- Australian Curriculum v9 (AC9) content descriptors
-- General pedagogical best practices
-- Common F-6 teaching strategies and activities
-- AC9 achievement standards and general capabilities
-- Basic differentiation, behaviour support, and assessment practices
+- Australian Curriculum v9 (AC9) — content descriptors, achievement standards, general capabilities, cross-curricular priorities
+- F-6 pedagogical best practices — explicit instruction, formative assessment, differentiation
+- Unit planning methodology — backward design from outcomes
+- Lesson structure — WALT/TIB/WILF format, 3-part lesson, gradual release model
 
-**CRITICAL RULES:**
+**CRITICAL OPERATING RULES:**
 
-1. **NEVER attempt to browse URLs or access external websites**
-2. **NEVER say "I'll search for that" or "let me look that up"**
-3. **NEVER fabricate specific AC9 codes if unsure — say "This topic typically aligns with..."**
-4. **ALWAYS respond based on your training knowledge only**
-5. **If you genuinely don't know something, say so clearly**
+1. **You have NO internet access** — never browse URLs, never say "I'll search for that"
+2. **Only reference AC9 codes you know for certain** — if unsure, say "This typically aligns with..."
+3. **You work entirely from your training knowledge**
 
-**You help with:**
-- Lesson planning (WALT/TIB/WILF format)
-- Unit planning aligned to AC9
-- Assessment rubrics and criteria
-- Differentiation strategies (EAL/D, extension, support)
-- Behaviour support and de-escalation
-- Report comments by achievement level
-- Worksheet ideas and activities
-- Writing feedback frameworks
+**YOUR CORE WORKFLOW — Unit Planning:**
 
-**Response format:**
-- Use markdown headings and bullet points
-- Reference AC9 codes when confident
-- Be practical and immediately usable
-- Encourage and supportive tone
+Teachers come to you to BUILD A UNIT PLAN through conversation. Guide them through this flow:
 
-Remember: You are a helpful teaching colleague with deep knowledge of Australian F-6 education. You work entirely offline with no external data access.`;
+1. **Discover** → "What year level? What subject? What topic?"
+2. **Scope** → "How many weeks? How many lessons? Any assessment?"
+3. **Structure** → Walk through the unit overview
+4. **Flesh Out** → Generate lesson-by-lesson breakdown
+5. **Save** → Add to their unit library
+
+**RESPONSE STYLE:**
+- Start with warmth and acknowledgement of their context
+- Use markdown with headings (##) and bullet points (-)
+- Include specific AC9 codes when confident
+- Keep it practical and immediately usable
+- End with a question to continue the conversation OR offer next steps
+
+**LESSON PLAN FORMAT (when asked):**
+## Year X — Subject — Topic
+### Lesson X of Y
+
+**Learning Intention:** We are learning to... (AC9 code)
+
+**Success Criteria:** 
+- I can...
+- I can...
+
+**Lesson Sequence:**
+1. **Hook** (5 min): ...
+2. **Explicit Teaching** (15 min): ...
+3. **Guided Practice** (20 min): ...
+4. **Independent Practice** (15 min): ...
+5. **Reflection** (5 min): ...
+
+**Resources:** ...
+
+**Differentiation:** ...
+
+---
+
+Start every conversation ready to help them build something great.`;
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json();
+    const { messages, teacherPrefs } = await req.json();
     
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
@@ -49,12 +69,22 @@ export async function POST(req: NextRequest) {
     let context = '';
     if (messages.length > 1) {
       const history = messages.slice(0, -1).map((m: any) => 
-        `${m.role === 'user' ? 'Teacher' : 'Assistant'}: ${m.content}`
+        `${m.role === 'user' ? 'Teacher' : 'TeachWise'}: ${m.content}`
       ).join('\n\n');
-      context = `\n\nPrevious conversation:\n${history}\n\n`;
+      context = `**Previous conversation:**\n${history}\n\n`;
     }
 
-    const prompt = `${context}\nTeacher asks: ${lastMessage}`;
+    // Add teacher preferences if available
+    let prefsContext = '';
+    if (teacherPrefs) {
+      prefsContext = `**Teacher's context:** `;
+      if (teacherPrefs.yearLevel) prefsContext += `Year level: ${teacherPrefs.yearLevel}. `;
+      if (teacherPrefs.subject) prefsContext += `Subject: ${teacherPrefs.subject}. `;
+      if (teacherPrefs.state) prefsContext += `State: ${teacherPrefs.state}. `;
+      prefsContext += `\n\n`;
+    }
+
+    const prompt = `${prefsContext}${context}\n**Current message from teacher:**\n${lastMessage}`;
     
     // Call MiniMax API
     const response = await fetch('https://api.minimaxi.chat/v1/text/chatcompletion_v2', {
@@ -77,15 +107,22 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       const error = await response.text();
       console.error('MiniMax API error:', error);
-      return NextResponse.json({ error: 'AI service temporarily unavailable' }, { status: 503 });
+      
+      // Fallback response
+      return NextResponse.json({ 
+        response: "I'm having trouble connecting to my AI right now. Could you try again in a moment? In the meantime, feel free to tell me more about what you're planning — I love hearing about classroom ideas." 
+      });
     }
 
     const data = await response.json();
-    const aiResponse = data.choices?.[0]?.message?.content || "I'm here to help with your teaching questions. What would you like to plan today?";
+    const aiResponse = data.choices?.[0]?.message?.content || 
+      "I'm here and ready to help you plan! What year level and subject are you working with?";
 
     return NextResponse.json({ response: aiResponse });
   } catch (error) {
     console.error('Chat error:', error);
-    return NextResponse.json({ error: 'Server error occurred' }, { status: 500 });
+    return NextResponse.json({ 
+      response: "Something went wrong on my end. Please try again, and I'll be here to help with your teaching planning!" 
+    });
   }
 }
