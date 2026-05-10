@@ -18,10 +18,13 @@ export interface UnitPlan {
   subject: string;
   yearLevel: string;
   topic: string;
+  description: string;
   duration: string; // e.g. "6 weeks"
   lessons: number;
   overview: string;
+  content: string;
   ac9Codes: string[];
+  outcomes: string[];
   assessment?: string;
   createdAt: Date;
 }
