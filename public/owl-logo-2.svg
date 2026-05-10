@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0D1117"/>
+      <stop offset="100%" style="stop-color:#1a2332"/>
+    </linearGradient>
+    <radialGradient id="eye2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#00D4AA"/>
+      <stop offset="70%" style="stop-color:#00A88A"/>
+      <stop offset="100%" style="stop-color:#006655"/>
+    </radialGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="120" height="120" rx="24" fill="url(#bg2)"/>
+  <rect width="120" height="120" rx="24" fill="none" stroke="#00D4AA" stroke-width="2"/>
+  <!-- Glasses -->
+  <circle cx="42" cy="55" r="18" fill="none" stroke="#00D4AA" stroke-width="3"/>
+  <circle cx="78" cy="55" r="18" fill="none" stroke="#00D4AA" stroke-width="3"/>
+  <line x1="60" y1="55" x2="60" y2="55" stroke="#00D4AA" stroke-width="3"/>
+  <line x1="60" y1="50" x2="60" y2="60" stroke="#00D4AA" stroke-width="2"/>
+  <line x1="24" y1="50" x2="24" y2="55" stroke="#00D4AA" stroke-width="2"/>
+  <line x1="96" y1="50" x2="96" y2="55" stroke="#00D4AA" stroke-width="2"/>
+  <!-- Owl head -->
+  <ellipse cx="60" cy="65" rx="35" ry="40" fill="#1a2332"/>
+  <!-- Eye whites / lenses -->
+  <circle cx="42" cy="55" r="14" fill="#0D1117"/>
+  <circle cx="78" cy="55" r="14" fill="#0D1117"/>
+  <!-- Pupils with glasses effect -->
+  <circle cx="42" cy="55" r="8" fill="url(#eye2)"/>
+  <circle cx="78" cy="55" r="8" fill="url(#eye2)"/>
+  <circle cx="44" cy="53" r="3" fill="#fff" opacity="0.8"/>
+  <circle cx="80" cy="53" r="3" fill="#fff" opacity="0.8"/>
+  <!-- Beak -->
+  <polygon points="60,68 52,78 68,78" fill="#00D4AA"/>
+  <!-- Book -->
+  <rect x="40" y="85" width="40" height="25" rx="3" fill="#0D1117" stroke="#00D4AA" stroke-width="1.5"/>
+  <line x1="60" y1="85" x2="60" y2="110" stroke="#00D4AA" stroke-width="1"/>
+  <line x1="45" y1="90" x2="55" y2="90" stroke="#00D4AA" stroke-width="0.5" opacity="0.5"/>
+  <line x1="45" y1="95" x2="55" y2="95" stroke="#00D4AA" stroke-width="0.5" opacity="0.5"/>
+  <line x1="65" y1="90" x2="75" y2="90" stroke="#00D4AA" stroke-width="0.5" opacity="0.5"/>
+  <line x1="65" y1="95" x2="75" y2="95" stroke="#00D4AA" stroke-width="0.5" opacity="0.5"/>
+  <!-- Ear tufts -->
+  <polygon points="30,30 38,50 22,45" fill="#1a2332" stroke="#00D4AA" stroke-width="1"/>
+  <polygon points="90,30 82,50 98,45" fill="#1a2332" stroke="#00D4AA" stroke-width="1"/>
+</svg>

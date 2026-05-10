@@ -29,9 +29,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-[#30363D]">
-          <div className="w-9 h-9 rounded-lg bg-[#00D4AA] flex items-center justify-center text-base font-bold text-[#0D1117] flex-shrink-0">
-            TW
-          </div>
+          <img 
+            src="/owl-logo-5.svg" 
+            alt="TeachWise" 
+            className="w-9 h-9 flex-shrink-0"
+          />
           {sidebarOpen && (
             <div className="animate-fade-in">
               <div className="text-base font-semibold text-white">TeachWise</div>

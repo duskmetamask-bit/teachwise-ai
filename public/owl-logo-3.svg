@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <radialGradient id="aura3" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#00D4AA" stop-opacity="0.3"/>
+      <stop offset="100%" style="stop-color:#00D4AA" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wiz3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00D4AA"/>
+      <stop offset="100%" style="stop-color:#7B61FF"/>
+    </linearGradient>
+  </defs>
+  <!-- Aura glow -->
+  <circle cx="60" cy="60" r="55" fill="url(#aura3)"/>
+  <circle cx="60" cy="60" r="55" fill="none" stroke="#00D4AA" stroke-width="0.5" opacity="0.3"/>
+  <!-- Wizard hat -->
+  <polygon points="60,8 30,55 90,55" fill="url(#wiz3)"/>
+  <polygon points="60,8 45,55 75,55" fill="#0D1117" opacity="0.3"/>
+  <ellipse cx="60" cy="55" rx="35" ry="8" fill="#00D4AA"/>
+  <!-- Stars on hat -->
+  <polygon points="50,25 51,28 54,28 52,30 53,33 50,31 47,33 48,30 46,28 49,28" fill="#fff"/>
+  <polygon points="70,35 71,37 73,37 71.5,38.5 72,41 70,39.5 68,41 68.5,38.5 67,37 69,37" fill="#fff"/>
+  <circle cx="40" cy="40" r="1.5" fill="#fff"/>
+  <circle cx="80" cy="45" r="1" fill="#fff"/>
+  <!-- Owl body -->
+  <ellipse cx="60" cy="75" rx="32" ry="35" fill="#1a2332"/>
+  <ellipse cx="60" cy="75" rx="32" ry="35" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
+  <!-- Belly -->
+  <ellipse cx="60" cy="82" rx="20" ry="22" fill="#0D1117"/>
+  <!-- Glowing eyes -->
+  <circle cx="47" cy="62" r="13" fill="#0D1117"/>
+  <circle cx="47" cy="62" r="10" fill="#00D4AA"/>
+  <circle cx="47" cy="62" r="6" fill="#0D1117"/>
+  <circle cx="47" cy="62" r="3" fill="#00D4AA"/>
+  <circle cx="49" cy="60" r="1.5" fill="#fff"/>
+  <circle cx="73" cy="62" r="13" fill="#0D1117"/>
+  <circle cx="73" cy="62" r="10" fill="#00D4AA"/>
+  <circle cx="73" cy="62" r="6" fill="#0D1117"/>
+  <circle cx="73" cy="62" r="3" fill="#00D4AA"/>
+  <circle cx="75" cy="60" r="1.5" fill="#fff"/>
+  <!-- Beak -->
+  <polygon points="60,72 53,82 67,82" fill="#00D4AA"/>
+  <!-- Wing accents -->
+  <path d="M30,70 Q35,85 32,100" stroke="#00D4AA" stroke-width="1" fill="none" opacity="0.5"/>
+  <path d="M90,70 Q85,85 88,100" stroke="#00D4AA" stroke-width="1" fill="none" opacity="0.5"/>
+  <!-- Magic sparkles -->
+  <circle cx="25" cy="40" r="2" fill="#00D4AA" opacity="0.8"/>
+  <circle cx="95" cy="35" r="1.5" fill="#00D4AA" opacity="0.6"/>
+  <circle cx="20" cy="70" r="1" fill="#00D4AA" opacity="0.5"/>
+  <circle cx="100" cy="65" r="1.5" fill="#00D4AA" opacity="0.7"/>
+</svg>
