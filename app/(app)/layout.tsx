@@ -9,12 +9,7 @@ const navItems = [
   { label: 'AI Chat', href: '/chat', icon: '✧' },
   { label: 'Unit Library', href: '/units', icon: '◇' },
   { label: 'Lesson Planner', href: '/planner', icon: '◎' },
-  { label: 'Rubric Generator', href: '/rubrics', icon: '◉' },
-  { label: 'Auto-Marking', href: '/automark', icon: '◇' },
-  { label: 'Worksheet Generator', href: '/worksheets', icon: '◈' },
-  { label: 'Writing Feedback', href: '/writing', icon: '✧' },
-  { label: 'Behaviour Support', href: '/behaviour', icon: '◎' },
-  { label: 'Report Comments', href: '/reports', icon: '◉' },
+  { label: 'Auto-Marking', href: '/automark', icon: '◉' },
   { label: 'Profile', href: '/profile', icon: '◈' },
 ];
 
