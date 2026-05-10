@@ -1,52 +1,51 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
-  <defs>
-    <radialGradient id="heart5" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" style="stop-color:#00D4AA"/>
-      <stop offset="100%" style="stop-color:#00A88A"/>
-    </radialGradient>
-    <linearGradient id="glow5" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#00D4AA" stop-opacity="0.5"/>
-      <stop offset="100%" style="stop-color:#7B61FF" stop-opacity="0"/>
-    </linearGradient>
-  </defs>
-  <!-- Background -->
-  <rect width="120" height="120" rx="20" fill="#0D1117"/>
-  <rect width="120" height="120" rx="20" fill="none" stroke="#00D4AA" stroke-width="2"/>
-  <!-- Open book at bottom -->
-  <path d="M10,95 Q35,88 60,95 Q85,88 110,95 L105,110 Q80,103 60,110 Q40,103 15,110 Z" fill="#1a2332" stroke="#00D4AA" stroke-width="1.5"/>
-  <line x1="60" y1="95" x2="60" y2="110" stroke="#00D4AA" stroke-width="1"/>
-  <!-- Book pages lines -->
-  <line x1="20" y1="100" x2="55" y2="97" stroke="#00D4AA" stroke-width="0.5" opacity="0.4"/>
-  <line x1="20" y1="104" x2="55" y2="101" stroke="#00D4AA" stroke-width="0.5" opacity="0.4"/>
-  <line x1="65" y1="97" x2="100" y2="100" stroke="#00D4AA" stroke-width="0.5" opacity="0.4"/>
-  <line x1="65" y1="101" x2="100" y2="104" stroke="#00D4AA" stroke-width="0.5" opacity="0.4"/>
-  <!-- Owl body -->
-  <ellipse cx="60" cy="62" rx="32" ry="38" fill="#1a2332"/>
-  <ellipse cx="60" cy="62" rx="32" ry="38" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-  <!-- Graduation cap on top -->
-  <rect x="32" y="22" width="56" height="8" rx="1" fill="#00D4AA"/>
-  <polygon points="60,12 35,24 60,30 85,24" fill="#00D4AA"/>
-  <line x1="60" y1="30" x2="60" y2="38" stroke="#00D4AA" stroke-width="2"/>
-  <circle cx="60" cy="40" r="3" fill="#00D4AA"/>
-  <!-- Wisdom rays -->
-  <line x1="60" y1="8" x2="60" y2="2" stroke="#00D4AA" stroke-width="1" opacity="0.6"/>
-  <line x1="45" y1="10" x2="40" y2="5" stroke="#00D4AA" stroke-width="1" opacity="0.4"/>
-  <line x1="75" y1="10" x2="80" y2="5" stroke="#00D4AA" stroke-width="1" opacity="0.4"/>
-  <!-- Eyes -->
-  <circle cx="47" cy="50" r="14" fill="#0D1117"/>
-  <circle cx="47" cy="50" r="14" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-  <circle cx="73" cy="50" r="14" fill="#0D1117"/>
-  <circle cx="73" cy="50" r="14" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-  <!-- Pupils -->
-  <circle cx="47" cy="50" r="7" fill="#00D4AA"/>
-  <circle cx="73" cy="50" r="7" fill="#00D4AA"/>
-  <circle cx="48" cy="49" r="2.5" fill="#fff"/>
-  <circle cx="74" cy="49" r="2.5" fill="#fff"/>
-  <!-- Heart on chest -->
-  <path d="M60,72 C55,67 48,67 48,73 C48,78 60,85 60,85 C60,85 72,78 72,73 C72,67 65,67 60,72" fill="url(#heart5)"/>
-  <!-- Beak -->
-  <polygon points="60,60 55,67 65,67" fill="#00D4AA"/>
-  <!-- Ear tufts -->
-  <polygon points="32,35 40,50 25,45" fill="#1a2332" stroke="#00D4AA" stroke-width="1"/>
-  <polygon points="88,35 80,50 95,45" fill="#1a2332" stroke="#00D4AA" stroke-width="1"/>
+  <!-- Light green friendly background -->
+  <rect width="120" height="120" rx="24" fill="#F0FFF4"/>
+  
+  <!-- Green owl - fresh and friendly -->
+  <ellipse cx="60" cy="72" rx="36" ry="40" fill="#48BB78"/>
+  
+  <!-- Light belly -->
+  <ellipse cx="60" cy="78" rx="24" ry="26" fill="#C6F6D5"/>
+  
+  <!-- Big friendly eyes -->
+  <circle cx="40" cy="52" r="18" fill="white"/>
+  <circle cx="80" cy="52" r="18" fill="white"/>
+  <circle cx="43" cy="52" r="10" fill="#276749"/>
+  <circle cx="83" cy="52" r="10" fill="#276749"/>
+  <!-- Sparkle -->
+  <circle cx="47" cy="48" r="5" fill="white"/>
+  <circle cx="87" cy="48" r="5" fill="white"/>
+  <circle cx="40" cy="55" r="3" fill="white"/>
+  <circle cx="80" cy="55" r="3" fill="white"/>
+  
+  <!-- Rosy cheeks -->
+  <circle cx="26" cy="62" r="5" fill="#FED7D7" opacity="0.6"/>
+  <circle cx="94" cy="62" r="5" fill="#FED7D7" opacity="0.6"/>
+  
+  <!-- Small cute beak -->
+  <ellipse cx="60" cy="68" rx="7" ry="5" fill="#F6AD55"/>
+  
+  <!-- Ears -->
+  <ellipse cx="28" cy="38" rx="9" ry="12" fill="#48BB78"/>
+  <ellipse cx="92" cy="38" rx="9" ry="12" fill="#48BB78"/>
+  <ellipse cx="28" cy="40" rx="5" ry="7" fill="#68D391"/>
+  <ellipse cx="92" cy="40" rx="5" ry="7" fill="#68D391"/>
+  
+  <!-- Wings -->
+  <ellipse cx="26" cy="72" rx="12" ry="22" fill="#38A169"/>
+  <ellipse cx="94" cy="72" rx="12" ry="22" fill="#38A169"/>
+  
+  <!-- Graduation cap -->
+  <rect x="38" y="18" width="44" height="6" rx="1" fill="#2B6CB0"/>
+  <polygon points="60,10 40,20 60,26 80,20" fill="#2B6CB0"/>
+  <line x1="60" y1="26" x2="60" y2="34" stroke="#2B6CB0" stroke-width="2"/>
+  <circle cx="60" cy="36" r="3" fill="#F6E05E"/>
+  
+  <!-- Tassel -->
+  <line x1="80" y1="20" x2="88" y2="30" stroke="#F6E05E" stroke-width="2"/>
+  <circle cx="88" cy="32" r="3" fill="#F6E05E"/>
+  
+  <!-- Star - smart! -->
+  <polygon points="60,95 63,102 70,102 65,107 67,114 60,110 53,114 55,107 50,102 57,102" fill="#F6E05E"/>
 </svg>

@@ -1,45 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
-  <defs>
-    <linearGradient id="bg1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0D1117"/>
-      <stop offset="100%" style="stop-color:#161B22"/>
-    </linearGradient>
-    <linearGradient id="teal1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#00D4AA"/>
-      <stop offset="100%" style="stop-color:#00A88A"/>
-    </linearGradient>
-  </defs>
-  <!-- Background circle -->
-  <circle cx="60" cy="60" r="58" fill="url(#bg1)" stroke="#00D4AA" stroke-width="2"/>
-  <!-- Graduation cap -->
-  <rect x="35" y="28" width="50" height="6" rx="1" fill="#00D4AA"/>
-  <polygon points="60,20 40,30 60,34 80,30" fill="#00D4AA"/>
-  <line x1="60" y1="34" x2="60" y2="42" stroke="#00D4AA" stroke-width="2"/>
-  <circle cx="60" cy="44" r="3" fill="#00D4AA"/>
-  <!-- Owl body -->
-  <ellipse cx="60" cy="72" rx="28" ry="32" fill="#1a2332"/>
-  <ellipse cx="60" cy="72" rx="28" ry="32" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-  <!-- Belly pattern -->
-  <ellipse cx="60" cy="78" rx="18" ry="20" fill="#0D1117"/>
-  <path d="M48 70 Q60 65 72 70" stroke="#00D4AA" stroke-width="0.5" fill="none" opacity="0.5"/>
-  <path d="M48 76 Q60 71 72 76" stroke="#00D4AA" stroke-width="0.5" fill="none" opacity="0.5"/>
-  <path d="M48 82 Q60 77 72 82" stroke="#00D4AA" stroke-width="0.5" fill="none" opacity="0.5"/>
-  <!-- Eyes -->
-  <circle cx="48" cy="60" r="12" fill="#0D1117"/>
-  <circle cx="48" cy="60" r="12" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-  <circle cx="72" cy="60" r="12" fill="#0D1117"/>
-  <circle cx="72" cy="60" r="12" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-  <!-- Pupils -->
-  <circle cx="50" cy="60" r="5" fill="#00D4AA"/>
-  <circle cx="70" cy="60" r="5" fill="#00D4AA"/>
-  <circle cx="51" cy="59" r="2" fill="#fff"/>
-  <circle cx="71" cy="59" r="2" fill="#fff"/>
-  <!-- Beak -->
-  <polygon points="60,68 55,75 65,75" fill="#00D4AA"/>
-  <!-- Ear tufts -->
-  <polygon points="35,42 40,55 30,50" fill="#1a2332" stroke="#00D4AA" stroke-width="1"/>
-  <polygon points="85,42 80,55 90,50" fill="#1a2332" stroke="#00D4AA" stroke-width="1"/>
-  <!-- Feet -->
-  <ellipse cx="50" cy="100" rx="8" ry="4" fill="#00D4AA"/>
-  <ellipse cx="70" cy="100" rx="8" ry="4" fill="#00D4AA"/>
+  <!-- Warm friendly background -->
+  <rect width="120" height="120" rx="24" fill="#FFF8E7"/>
+  
+  <!-- Body - soft and round -->
+  <ellipse cx="60" cy="75" rx="35" ry="38" fill="#8B5A2B"/>
+  <!-- Belly - creamy -->
+  <ellipse cx="60" cy="82" rx="22" ry="25" fill="#F5DEB3"/>
+  
+  <!-- Eyes - big and friendly -->
+  <circle cx="44" cy="58" r="16" fill="white"/>
+  <circle cx="76" cy="58" r="16" fill="white"/>
+  <!-- Pupils - looking right, happy -->
+  <circle cx="46" cy="58" r="8" fill="#2D3748"/>
+  <circle cx="78" cy="58" r="8" fill="#2D3748"/>
+  <!-- Eye shine - friendly -->
+  <circle cx="48" cy="55" r="4" fill="white"/>
+  <circle cx="80" cy="55" r="4" fill="white"/>
+  <circle cx="44" cy="60" r="2" fill="white"/>
+  <circle cx="76" cy="60" r="2" fill="white"/>
+  
+  <!-- Happy eyebrows -->
+  <path d="M30 48 Q44 44 56 48" stroke="#8B5A2B" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M64 48 Q76 44 90 48" stroke="#8B5A2B" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <!-- Beak - small and cute -->
+  <ellipse cx="60" cy="72" rx="8" ry="6" fill="#F6AD55"/>
+  
+  <!-- Wings - soft -->
+  <ellipse cx="28" cy="75" rx="12" ry="20" fill="#A0522D"/>
+  <ellipse cx="92" cy="75" rx="12" ry="20" fill="#A0522D"/>
+  
+  <!-- Graduation cap - wise teacher -->
+  <rect x="38" y="25" width="44" height="6" rx="1" fill="#2B6CB0"/>
+  <polygon points="60,15 42,27 60,32 78,27" fill="#2B6CB0"/>
+  <line x1="60" y1="32" x2="60" y2="40" stroke="#2B6CB0" stroke-width="2"/>
+  <circle cx="60" cy="42" r="3" fill="#2B6CB0"/>
+  <!-- Tassel -->
+  <line x1="78" y1="27" x2="85" y2="35" stroke="#F6E05E" stroke-width="2"/>
+  <circle cx="85" cy="37" r="3" fill="#F6E05E"/>
+  
+  <!-- Ears -->
+  <ellipse cx="32" cy="40" rx="8" ry="10" fill="#8B5A2B"/>
+  <ellipse cx="88" cy="40" rx="8" ry="10" fill="#8B5A2B"/>
+  <ellipse cx="32" cy="42" rx="5" ry="6" fill="#D4A574"/>
+  <ellipse cx="88" cy="42" rx="5" ry="6" fill="#D4A574"/>
 </svg>

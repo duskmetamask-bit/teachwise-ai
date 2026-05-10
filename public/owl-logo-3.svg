@@ -1,50 +1,49 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
-  <defs>
-    <radialGradient id="aura3" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" style="stop-color:#00D4AA" stop-opacity="0.3"/>
-      <stop offset="100%" style="stop-color:#00D4AA" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="wiz3" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#00D4AA"/>
-      <stop offset="100%" style="stop-color:#7B61FF"/>
-    </linearGradient>
-  </defs>
-  <!-- Aura glow -->
-  <circle cx="60" cy="60" r="55" fill="url(#aura3)"/>
-  <circle cx="60" cy="60" r="55" fill="none" stroke="#00D4AA" stroke-width="0.5" opacity="0.3"/>
-  <!-- Wizard hat -->
-  <polygon points="60,8 30,55 90,55" fill="url(#wiz3)"/>
-  <polygon points="60,8 45,55 75,55" fill="#0D1117" opacity="0.3"/>
-  <ellipse cx="60" cy="55" rx="35" ry="8" fill="#00D4AA"/>
-  <!-- Stars on hat -->
-  <polygon points="50,25 51,28 54,28 52,30 53,33 50,31 47,33 48,30 46,28 49,28" fill="#fff"/>
-  <polygon points="70,35 71,37 73,37 71.5,38.5 72,41 70,39.5 68,41 68.5,38.5 67,37 69,37" fill="#fff"/>
-  <circle cx="40" cy="40" r="1.5" fill="#fff"/>
-  <circle cx="80" cy="45" r="1" fill="#fff"/>
-  <!-- Owl body -->
-  <ellipse cx="60" cy="75" rx="32" ry="35" fill="#1a2332"/>
-  <ellipse cx="60" cy="75" rx="32" ry="35" fill="none" stroke="#00D4AA" stroke-width="1.5"/>
-  <!-- Belly -->
-  <ellipse cx="60" cy="82" rx="20" ry="22" fill="#0D1117"/>
-  <!-- Glowing eyes -->
-  <circle cx="47" cy="62" r="13" fill="#0D1117"/>
-  <circle cx="47" cy="62" r="10" fill="#00D4AA"/>
-  <circle cx="47" cy="62" r="6" fill="#0D1117"/>
-  <circle cx="47" cy="62" r="3" fill="#00D4AA"/>
-  <circle cx="49" cy="60" r="1.5" fill="#fff"/>
-  <circle cx="73" cy="62" r="13" fill="#0D1117"/>
-  <circle cx="73" cy="62" r="10" fill="#00D4AA"/>
-  <circle cx="73" cy="62" r="6" fill="#0D1117"/>
-  <circle cx="73" cy="62" r="3" fill="#00D4AA"/>
-  <circle cx="75" cy="60" r="1.5" fill="#fff"/>
-  <!-- Beak -->
-  <polygon points="60,72 53,82 67,82" fill="#00D4AA"/>
-  <!-- Wing accents -->
-  <path d="M30,70 Q35,85 32,100" stroke="#00D4AA" stroke-width="1" fill="none" opacity="0.5"/>
-  <path d="M90,70 Q85,85 88,100" stroke="#00D4AA" stroke-width="1" fill="none" opacity="0.5"/>
-  <!-- Magic sparkles -->
-  <circle cx="25" cy="40" r="2" fill="#00D4AA" opacity="0.8"/>
-  <circle cx="95" cy="35" r="1.5" fill="#00D4AA" opacity="0.6"/>
-  <circle cx="20" cy="70" r="1" fill="#00D4AA" opacity="0.5"/>
-  <circle cx="100" cy="65" r="1.5" fill="#00D4AA" opacity="0.7"/>
+<svg xmlns="http://www.w3/svg" viewBox="0 0 120 120">
+  <!-- Light blue friendly background -->
+  <rect width="120" height="120" rx="24" fill="#EBF8FF"/>
+  
+  <!-- Soft owl body -->
+  <ellipse cx="60" cy="72" rx="35" ry="38" fill="#4299E1"/>
+  
+  <!-- Light belly -->
+  <ellipse cx="60" cy="78" rx="24" ry="26" fill="#BEE3F8"/>
+  
+  <!-- Super friendly eyes - big sparkle -->
+  <circle cx="42" cy="55" r="17" fill="white"/>
+  <circle cx="78" cy="55" r="17" fill="white"/>
+  <circle cx="45" cy="55" r="10" fill="#2B6CB0"/>
+  <circle cx="81" cy="55" r="10" fill="#2B6CB0"/>
+  <!-- Happy shine -->
+  <circle cx="49" cy="50" r="5" fill="white"/>
+  <circle cx="85" cy="50" r="5" fill="white"/>
+  <circle cx="42" cy="58" r="3" fill="white"/>
+  <circle cx="78" cy="58" r="3" fill="white"/>
+  
+  <!-- Cute smile -->
+  <path d="M52 68 Q60 76 68 68" stroke="#2B6CB0" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <!-- Small orange beak -->
+  <ellipse cx="60" cy="72" rx="6" ry="4" fill="#F6AD55"/>
+  
+  <!-- Ears -->
+  <ellipse cx="28" cy="40" rx="8" ry="12" fill="#4299E1"/>
+  <ellipse cx="92" cy="40" rx="8" ry="12" fill="#4299E1"/>
+  <ellipse cx="28" cy="42" rx="5" ry="7" fill="#90CDF4"/>
+  <ellipse cx="92" cy="42" rx="5" ry="7" fill="#90CDF4"/>
+  
+  <!-- Wings -->
+  <ellipse cx="26" cy="72" rx="12" ry="22" fill="#3182CE"/>
+  <ellipse cx="94" cy="72" rx="12" ry="22" fill="#3182CE"/>
+  
+  <!-- Stars around head - wise! -->
+  <polygon points="20,25 22,30 27,30 23,34 25,39 20,36 15,39 17,34 13,30 18,30" fill="#F6E05E"/>
+  <polygon points="100,25 101,28 104,28 102,30 103,33 100,31 97,33 98,30 96,28 99,28" fill="#F6E05E"/>
+  <circle cx="15" cy="35" r="2" fill="#F6E05E"/>
+  <circle cx="105" cy="35" r="2" fill="#F6E05E"/>
+  
+  <!-- Graduation cap -->
+  <rect x="40" y="20" width="40" height="5" rx="1" fill="#2B6CB0"/>
+  <polygon points="60,12 44,21 60,26 76,21" fill="#2B6CB0"/>
+  <line x1="60" y1="26" x2="60" y2="32" stroke="#2B6CB0" stroke-width="2"/>
+  <circle cx="60" cy="34" r="2.5" fill="#F6E05E"/>
 </svg>
