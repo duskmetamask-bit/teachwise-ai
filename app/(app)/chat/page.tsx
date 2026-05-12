@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { Message, TeacherPrefs } from '@/app/lib/types';
 
 const STORAGE_KEY = 'teachwise_prefs';
 const HISTORY_KEY = 'teachwise_chat_history';
 
 const quickActions = [
-  { label: 'Create a unit plan', icon: '◇', prompt: 'Help me create a unit plan for...' },
-  { label: 'Plan a lesson', icon: '◉', prompt: 'I need a lesson plan for...' },
-  { label: 'Differentiate', icon: '◎', prompt: 'Help me differentiate this for...' },
-  { label: 'Create a rubric', icon: '✧', prompt: 'Create a rubric for...' },
+  { label: 'Plan a lesson', icon: '◉', targetPage: '/planner', prefill: 'lesson' },
+  { label: 'Create a rubric', icon: '✧', targetPage: '/rubrics', prefill: 'rubric' },
+  { label: 'Build a unit', icon: '◇', targetPage: '/units', prefill: 'unit' },
+  { label: 'Mark student work', icon: '◎', targetPage: '/automark', prefill: 'automark' },
 ];
 
 const defaultWelcome = `👋 **Welcome to TeachWise AI**
@@ -367,17 +368,22 @@ export default function ChatPage() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2 mb-4">
-        {quickActions.map((action) => (
-          <button
-            key={action.label}
-            onClick={() => handleSend(action.prompt)}
-            disabled={isTyping}
-            className="px-3 py-2 rounded-lg text-xs bg-[#0D1117] border border-[#30363D] text-[#8B949E] hover:border-[#00D4AA]/50 hover:text-[#00D4AA] transition-all flex items-center gap-2 disabled:opacity-50"
-          >
-            <span className="text-[#00D4AA]">{action.icon}</span>
-            {action.label}
-          </button>
-        ))}
+        {quickActions.map((action) => {
+          const params = new URLSearchParams({ prefill: action.prefill });
+          if (prefs.yearLevel) params.set('year', prefs.yearLevel);
+          if (prefs.subject) params.set('subject', prefs.subject);
+          const href = `${action.targetPage}?${params.toString()}`;
+          return (
+            <Link
+              key={action.label}
+              href={href}
+              className="px-3 py-2 rounded-lg text-xs bg-[#0D1117] border border-[#30363D] text-[#8B949E] hover:border-[#00D4AA]/50 hover:text-[#00D4AA] transition-all flex items-center gap-2"
+            >
+              <span className="text-[#00D4AA]">{action.icon}</span>
+              {action.label}
+            </Link>
+          );
+        })}
       </div>
 
       {/* Input */}

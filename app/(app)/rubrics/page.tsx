@@ -1,6 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center py-16">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm text-slate-500">Loading...</span>
+      </div>
+    </div>
+  );
+}
+
+function RubricsContent() {
 
 const YEAR_LEVELS = ['F', '1', '2', '3', '4', '5', '6'];
 const SUBJECTS = ['English', 'Mathematics', 'Science', 'HASS', 'Digital Technologies', 'Health'];
@@ -31,7 +45,8 @@ interface RubricResult {
   descriptors: string[][];
 }
 
-export default function RubricsPage() {
+function RubricsContent() {
+  const searchParams = useSearchParams();
   const [yearLevel, setYearLevel] = useState('');
   const [subject, setSubject] = useState('');
   const [topic, setTopic] = useState('');
@@ -40,6 +55,14 @@ export default function RubricsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // Pre-fill from URL params on mount
+  useEffect(() => {
+    const year = searchParams.get('year');
+    const subjectParam = searchParams.get('subject');
+    if (year) setYearLevel(decodeURIComponent(year).replace('Year ', ''));
+    if (subjectParam) setSubject(decodeURIComponent(subjectParam));
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

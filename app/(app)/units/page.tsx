@@ -32,12 +32,13 @@ export default function UnitsPage() {
   const [selectedUnit, setSelectedUnit] = useState<UnitPlan | null>(null);
   const [search, setSearch] = useState('');
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
-  const [units, setUnits] = useState<UnitPlan[]>([]);
+  const [units, setUnits] = useState<UnitPlan[]>(mockUnits);
 
   useEffect(() => {
     const stored: SavedPlan[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     setSavedPlans(stored);
-    setUnits([...stored.map(savedPlanToUnit), ...mockUnits]);
+    const savedAsUnits = stored.map(savedPlanToUnit);
+    setUnits([...mockUnits, ...savedAsUnits]);
   }, []);
 
   const filtered = units.filter((u) => {

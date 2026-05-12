@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { SavedPlan } from '@/app/lib/types';
 
 const subjects = ['Mathematics', 'English', 'Science', 'Humanities & Social Sciences', 'Digital Technologies', 'Health & Physical Education'];
@@ -65,6 +65,7 @@ function extractAc9Codes(content: string): string[] {
 }
 
 export default function PlannerPage() {
+  const searchParams = useSearchParams();
   const [subject, setSubject] = useState('');
   const [yearLevel, setYearLevel] = useState('');
   const [topic, setTopic] = useState('');
@@ -72,6 +73,15 @@ export default function PlannerPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
   const [showResult, setShowResult] = useState(false);
+
+  // Pre-fill from URL params on mount
+  useEffect(() => {
+    const prefill = searchParams.get('prefill');
+    const year = searchParams.get('year');
+    const subjectParam = searchParams.get('subject');
+    if (year) setYearLevel(decodeURIComponent(year));
+    if (subjectParam) setSubject(decodeURIComponent(subjectParam));
+  }, [searchParams]);
 
   const handleGenerate = async () => {
     if (!subject || !yearLevel || !topic) return;

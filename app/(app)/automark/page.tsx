@@ -1,7 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center py-16">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm text-slate-500">Loading...</span>
+      </div>
+    </div>
+  );
+}
+
+function AutomarkContent() {
 
 const AUTO_MARK_SYSTEM_PROMPT = `You are an expert Australian teacher assessor with deep knowledge of:
 - Australian Curriculum v9 (AC9) achievement standards and assessment rubrics
@@ -136,7 +149,7 @@ function LoadingDots() {
   );
 }
 
-export default function AutomarkPage() {
+function AutomarkContent() {
   const searchParams = useSearchParams();
   const [studentFile, setStudentFile] = useState<File | null>(null);
   const [rubricFile, setRubricFile] = useState<File | null>(null);
@@ -488,5 +501,13 @@ export default function AutomarkPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AutomarkPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <AutomarkContent />
+    </Suspense>
   );
 }
