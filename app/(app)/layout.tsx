@@ -3,42 +3,49 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { LayoutDashboard, MessageSquare, ClipboardList, Library, Calendar, CheckSquare, User, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
 
 const navItems = [
-  { label: 'Dashboard', href: '/', icon: '◈' },
-  { label: 'AI Chat', href: '/chat', icon: '✧' },
-  { label: 'Rubrics', href: '/rubrics', icon: '◉' },
-  { label: 'Unit Library', href: '/units', icon: '◇' },
-  { label: 'Lesson Planner', href: '/planner', icon: '◎' },
-  { label: 'Auto-Marking', href: '/automark', icon: '◈' },
-  { label: 'Profile', href: '/profile', icon: '◈' },
+  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'AI Chat', href: '/chat', icon: MessageSquare },
+  { label: 'Rubrics', href: '/rubrics', icon: ClipboardList },
+  { label: 'Unit Library', href: '/units', icon: Library },
+  { label: 'Lesson Planner', href: '/planner', icon: Calendar },
+  { label: 'Auto-Marking', href: '/automark', icon: CheckSquare },
+  { label: 'Profile', href: '/profile', icon: User },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-      {/* Sidebar - Deep Navy */}
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--color-bg)' }}>
+      {/* Sidebar */}
       <aside
-        className="flex flex-col border-r border-slate-200 bg-[#1E3A5F] transition-all duration-300 shadow-lg"
+        className="flex flex-col transition-all duration-300"
         style={{
-          width: sidebarOpen ? 260 : 72,
-          minWidth: sidebarOpen ? 260 : 72,
+          width: collapsed ? 72 : 260,
+          minWidth: collapsed ? 72 : 260,
+          backgroundColor: 'var(--color-sidebar)',
+          borderRight: '1px solid var(--color-border-subtle)',
         }}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-          <img 
-            src="/owl-mascot.png" 
-            alt="TeachWise" 
-            className="w-10 h-10 flex-shrink-0 rounded-xl shadow-sm object-contain"
-          />
-          {sidebarOpen && (
-            <div className="animate-fade-in">
+        <div
+          className="flex items-center gap-3 px-4 py-5"
+          style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
+        >
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: 'var(--color-accent)' }}
+          >
+            <Zap className="w-5 h-5 text-white" />
+          </div>
+          {!collapsed && (
+            <div className="animate-fade-in overflow-hidden">
               <div className="text-base font-bold text-white">TeachWise</div>
-              <div className="text-xs text-emerald-300">AI Assistant</div>
+              <div className="text-xs" style={{ color: 'var(--color-accent)' }}>AI Assistant</div>
             </div>
           )}
         </div>
@@ -51,28 +58,45 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 mx-3 px-4 py-3 rounded-xl text-sm transition-all duration-200 mb-1 ${
+                className={`flex items-center gap-3 mx-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 mb-1 ${
                   active
-                    ? 'bg-emerald-500 text-white font-semibold shadow-md'
-                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                    ? 'bg-[var(--color-accent)] text-white font-semibold'
+                    : 'text-[var(--color-text-muted)] hover:text-white hover:bg-[var(--color-sidebar-hover)]'
                 }`}
+                title={collapsed ? item.label : undefined}
               >
-                <span className={`text-base flex-shrink-0 ${active ? 'text-white' : 'text-emerald-300'}`}>
-                  {item.icon}
-                </span>
-                {sidebarOpen && <span className="animate-fade-in">{item.label}</span>}
+                <item.icon
+                  className={`w-5 h-5 flex-shrink-0 ${active ? 'text-white' : 'text-[var(--color-accent)]'}`}
+                />
+                {!collapsed && <span className="animate-fade-in whitespace-nowrap">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
-        {/* Collapse Toggle */}
-        <div className="p-4 border-t border-white/10">
+        {/* Pro Badge + Collapse Toggle */}
+        <div
+          className="p-4"
+          style={{ borderTop: '1px solid var(--color-border-subtle)' }}
+        >
+          {!collapsed && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-xl mb-3 text-xs font-medium"
+              style={{
+                backgroundColor: 'var(--color-accent-dim)',
+                color: 'var(--color-accent)',
+              }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
+              Pro Plan
+            </div>
+          )}
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="w-full flex items-center justify-center py-2.5 rounded-xl text-sm text-slate-300 bg-white/5 hover:bg-white/10 hover:text-white transition-colors"
+            onClick={() => setCollapsed(!collapsed)}
+            className="w-full flex items-center justify-center py-2.5 rounded-xl text-sm transition-colors"
+            style={{ backgroundColor: 'var(--color-surface-raised)', color: 'var(--color-text-muted)' }}
           >
-            {sidebarOpen ? '◀ Collapse' : '▶ Expand'}
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         </div>
       </aside>
@@ -80,18 +104,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
         {/* Top Bar */}
-        <header className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white shadow-sm">
+        <header
+          className="flex items-center justify-between px-6 py-4"
+          style={{
+            backgroundColor: 'var(--color-surface)',
+            borderBottom: '1px solid var(--color-border-subtle)',
+          }}
+        >
           <div>
-            <h1 className="text-lg font-semibold text-slate-800">
+            <h1 className="text-lg font-semibold text-white">
               {navItems.find((n) => n.href === pathname)?.label || 'TeachWise AI'}
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full text-sm bg-emerald-50 text-emerald-700 font-medium border border-emerald-200">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
+              style={{
+                backgroundColor: 'var(--color-accent-dim)',
+                color: 'var(--color-accent)',
+              }}
+            >
+              <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
               Pro Plan
             </div>
-            <div className="w-9 h-9 rounded-full bg-[#1E3A5F] flex items-center justify-center text-sm font-bold text-white">
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white"
+              style={{ backgroundColor: 'var(--color-accent)' }}
+            >
               JD
             </div>
           </div>

@@ -2,13 +2,14 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { CheckSquare, Upload, FileText, Loader2, RefreshCw, Download } from 'lucide-react';
 
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center py-16">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm text-slate-500">Loading...</span>
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-accent)' }} />
+        <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Loading...</span>
       </div>
     </div>
   );
@@ -140,9 +141,9 @@ function GradeBadge({ grade }: { grade: string }) {
 function LoadingDots() {
   return (
     <div className="flex items-center justify-center gap-1 py-4">
-      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '0ms' }} />
+      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '150ms' }} />
+      <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '300ms' }} />
     </div>
   );
 }
@@ -257,18 +258,22 @@ function AutomarkContent() {
       {!showResult ? (
         <div className="max-w-xl mx-auto">
           <div className="mb-6">
-            <h2 className="text-lg font-semibold text-white mb-1">Auto-Marking</h2>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <h2 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
+              <CheckSquare className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />
+              Auto-Marking
+            </h2>
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
               Upload student work and a rubric — get instant criterion-by-criterion feedback
             </p>
           </div>
 
           <div className="space-y-4">
+            {/* Student Work Upload */}
             <div
-              className="p-6 rounded-xl border border-dashed text-center cursor-pointer transition-all"
+              className="p-6 rounded-xl border border-dashed cursor-pointer transition-all"
               style={{
-                borderColor: studentFile ? 'var(--accent)' : 'var(--border)',
-                backgroundColor: 'var(--bg-card)',
+                borderColor: studentFile ? 'var(--color-accent)' : 'var(--color-border)',
+                backgroundColor: 'var(--color-surface)',
               }}
             >
               <input
@@ -279,19 +284,29 @@ function AutomarkContent() {
                 id="student-upload"
               />
               <label htmlFor="student-upload" className="cursor-pointer">
-                <div className="text-2xl mb-2" style={{ color: 'var(--accent)' }}>PDF</div>
-                <div className="text-sm text-white mb-1">
-                  {studentFile ? studentFile.name : 'Upload Student Work'}
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: 'var(--color-accent-dim)' }}
+                  >
+                    <FileText className="w-6 h-6" style={{ color: 'var(--color-accent)' }} />
+                  </div>
+                  <div>
+                    <div className="text-sm text-white mb-1">
+                      {studentFile ? studentFile.name : 'Upload Student Work'}
+                    </div>
+                    <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>PDF, DOCX, or TXT</div>
+                  </div>
                 </div>
-                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>PDF, DOCX, or TXT</div>
               </label>
             </div>
 
+            {/* Rubric Upload */}
             <div
-              className="p-6 rounded-xl border border-dashed text-center cursor-pointer transition-all"
+              className="p-6 rounded-xl border border-dashed cursor-pointer transition-all"
               style={{
-                borderColor: rubricFile ? 'var(--accent)' : 'var(--border)',
-                backgroundColor: 'var(--bg-card)',
+                borderColor: rubricFile ? 'var(--color-accent)' : 'var(--color-border)',
+                backgroundColor: 'var(--color-surface)',
               }}
             >
               <input
@@ -302,18 +317,27 @@ function AutomarkContent() {
                 id="rubric-upload"
               />
               <label htmlFor="rubric-upload" className="cursor-pointer">
-                <div className="text-2xl mb-2" style={{ color: 'var(--accent)' }}>RUBRIC</div>
-                <div className="text-sm text-white mb-1">
-                  {rubricFile ? rubricFile.name : 'Upload Assessment Rubric'}
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: 'var(--color-accent-dim)' }}
+                  >
+                    <Upload className="w-6 h-6" style={{ color: 'var(--color-accent)' }} />
+                  </div>
+                  <div>
+                    <div className="text-sm text-white mb-1">
+                      {rubricFile ? rubricFile.name : 'Upload Assessment Rubric'}
+                    </div>
+                    <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>PDF, DOCX, or TXT</div>
+                  </div>
                 </div>
-                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>PDF, DOCX, or TXT</div>
               </label>
             </div>
 
             {(needsPaste(studentFile) || needsPaste(rubricFile)) && (
               <div
                 className="p-4 rounded-xl text-xs"
-                style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }}
+                style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-muted)' }}
               >
                 For PDF/DOCX, please copy and paste the text into the text areas below
               </div>
@@ -323,33 +347,25 @@ function AutomarkContent() {
               <div className="space-y-4">
                 {needsPaste(studentFile) && (
                   <div>
-                    <label className="text-xs text-white mb-1 block">Student Work Text</label>
+                    <label className="label-dark">Student Work Text</label>
                     <textarea
                       value={studentText}
                       onChange={(e) => setStudentText(e.target.value)}
                       placeholder="Paste student work here..."
-                      className="w-full h-40 p-3 rounded-xl text-sm resize-none focus:outline-none focus:ring-2"
-                      style={{
-                        backgroundColor: 'var(--bg-card)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-primary)',
-                      }}
+                      className="input-dark"
+                      rows={6}
                     />
                   </div>
                 )}
                 {needsPaste(rubricFile) && (
                   <div>
-                    <label className="text-xs text-white mb-1 block">Rubric Text</label>
+                    <label className="label-dark">Rubric Text</label>
                     <textarea
                       value={rubricText}
                       onChange={(e) => setRubricText(e.target.value)}
                       placeholder="Paste rubric here..."
-                      className="w-full h-40 p-3 rounded-xl text-sm resize-none focus:outline-none focus:ring-2"
-                      style={{
-                        backgroundColor: 'var(--bg-card)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-primary)',
-                      }}
+                      className="input-dark"
+                      rows={6}
                     />
                   </div>
                 )}
@@ -361,9 +377,10 @@ function AutomarkContent() {
               disabled={!canSubmit()}
               className="w-full py-3.5 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2"
               style={{
-                backgroundColor: canSubmit() ? 'var(--accent)' : 'var(--bg-card)',
-                color: canSubmit() ? 'var(--bg-primary)' : 'var(--text-muted)',
+                backgroundColor: canSubmit() ? 'var(--color-accent)' : 'var(--color-surface)',
+                color: canSubmit() ? 'white' : 'var(--color-text-muted)',
                 cursor: canSubmit() ? 'pointer' : 'not-allowed',
+                border: canSubmit() ? 'none' : '1px solid var(--color-border)',
               }}
             >
               {loading ? (
@@ -372,7 +389,10 @@ function AutomarkContent() {
                   <LoadingDots />
                 </>
               ) : (
-                'Analyse Student Work'
+                <>
+                  <CheckSquare className="w-4 h-4" />
+                  Analyse Student Work
+                </>
               )}
             </button>
           </div>
@@ -384,15 +404,17 @@ function AutomarkContent() {
             <div className="flex gap-2">
               <button
                 onClick={handleReset}
-                className="px-4 py-2 rounded-lg text-xs border"
-                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                className="px-4 py-2 rounded-lg text-xs border flex items-center gap-1"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
               >
+                <RefreshCw className="w-3 h-3" />
                 New Analysis
               </button>
               <button
-                className="px-4 py-2 rounded-lg text-xs font-medium"
-                style={{ backgroundColor: 'var(--accent)', color: 'var(--bg-primary)' }}
+                className="px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-1"
+                style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}
               >
+                <Download className="w-3 h-3" />
                 Export PDF
               </button>
             </div>
@@ -408,7 +430,7 @@ function AutomarkContent() {
               </span>
               <div>
                 <div className="text-sm text-white font-medium">Overall Grade</div>
-                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Criterion-Referenced Assessment</div>
+                <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Criterion-Referenced Assessment</div>
               </div>
             </div>
           )}
@@ -420,13 +442,13 @@ function AutomarkContent() {
                 <div
                   key={i}
                   className="p-4 rounded-xl border"
-                  style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
+                  style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                 >
                   <div className="flex items-start gap-3">
                     <GradeBadge grade={c.grade} />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-white mb-1">{c.name}</div>
-                      <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{c.feedback}</div>
+                      <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{c.feedback}</div>
                     </div>
                   </div>
                 </div>
@@ -438,13 +460,13 @@ function AutomarkContent() {
             {result?.strengths && result.strengths.length > 0 && (
               <div
                 className="p-4 rounded-xl border"
-                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
+                style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
               >
-                <h3 className="text-sm font-medium text-emerald-400 mb-3">Strengths</h3>
+                <h3 className="text-sm font-medium mb-3" style={{ color: 'var(--color-accent)' }}>Strengths</h3>
                 <ul className="space-y-2">
                   {result.strengths.map((s, i) => (
-                    <li key={i} className="text-xs flex items-start gap-2" style={{ color: 'var(--text-primary)' }}>
-                      <span className="text-emerald-400 mt-0.5">+</span>
+                    <li key={i} className="text-xs flex items-start gap-2" style={{ color: 'var(--color-text)' }}>
+                      <span style={{ color: 'var(--color-accent)' }}>+</span>
                       {s}
                     </li>
                   ))}
@@ -454,13 +476,13 @@ function AutomarkContent() {
             {result?.areasForDevelopment && result.areasForDevelopment.length > 0 && (
               <div
                 className="p-4 rounded-xl border"
-                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
+                style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
               >
-                <h3 className="text-sm font-medium text-amber-400 mb-3">Areas for Development</h3>
+                <h3 className="text-sm font-medium mb-3" style={{ color: 'var(--color-warning)' }}>Areas for Development</h3>
                 <ul className="space-y-2">
                   {result.areasForDevelopment.map((a, i) => (
-                    <li key={i} className="text-xs flex items-start gap-2" style={{ color: 'var(--text-primary)' }}>
-                      <span className="text-amber-400 mt-0.5">→</span>
+                    <li key={i} className="text-xs flex items-start gap-2" style={{ color: 'var(--color-text)' }}>
+                      <span style={{ color: 'var(--color-warning)' }}>→</span>
                       {a}
                     </li>
                   ))}
@@ -472,13 +494,13 @@ function AutomarkContent() {
           {result?.nextSteps && result.nextSteps.length > 0 && (
             <div
               className="p-4 rounded-xl border"
-              style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
+              style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
             >
-              <h3 className="text-sm font-medium text-blue-400 mb-3">Next Steps</h3>
+              <h3 className="text-sm font-medium mb-3" style={{ color: '#3B82F6' }}>Next Steps</h3>
               <ol className="space-y-2">
                 {result.nextSteps.map((n, i) => (
-                  <li key={i} className="text-xs flex items-start gap-2" style={{ color: 'var(--text-primary)' }}>
-                    <span className="text-blue-400 font-medium">{i + 1}.</span>
+                  <li key={i} className="text-xs flex items-start gap-2" style={{ color: 'var(--color-text)' }}>
+                    <span style={{ color: '#3B82F6' }}>{i + 1}.</span>
                     {n}
                   </li>
                 ))}
@@ -489,9 +511,9 @@ function AutomarkContent() {
           {!result?.overallGrade && rawResponse && (
             <div
               className="p-6 rounded-xl border"
-              style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
+              style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
             >
-              <pre className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>
+              <pre className="text-sm whitespace-pre-wrap" style={{ color: 'var(--color-text)' }}>
                 {rawResponse}
               </pre>
             </div>

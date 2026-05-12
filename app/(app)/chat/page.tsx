@@ -1,17 +1,18 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Message, TeacherPrefs } from '@/app/lib/types';
+import { Send, Mic, MicOff, Settings, Trash2, Sparkles } from 'lucide-react';
 
 const STORAGE_KEY = 'teachwise_prefs';
 const HISTORY_KEY = 'teachwise_chat_history';
 
 const quickActions = [
-  { label: 'Plan a lesson', icon: '◉', targetPage: '/planner', prefill: 'lesson' },
-  { label: 'Create a rubric', icon: '✧', targetPage: '/rubrics', prefill: 'rubric' },
-  { label: 'Build a unit', icon: '◇', targetPage: '/units', prefill: 'unit' },
-  { label: 'Mark student work', icon: '◎', targetPage: '/automark', prefill: 'automark' },
+  { label: 'Plan a lesson', icon: Sparkles, targetPage: '/planner', prefill: 'lesson' },
+  { label: 'Create a rubric', icon: Settings, targetPage: '/rubrics', prefill: 'rubric' },
+  { label: 'Build a unit', icon: Sparkles, targetPage: '/units', prefill: 'unit' },
+  { label: 'Mark student work', icon: Settings, targetPage: '/automark', prefill: 'automark' },
 ];
 
 const defaultWelcome = `👋 **TeachWise AI — your teaching assistant**
@@ -25,6 +26,49 @@ I'm aligned to the Australian Curriculum v9 (AC9) and I'm here to help you build
 • **Auto-marking** — Upload student work + rubric, get structured feedback instantly
 
 Just tell me what year level, subject, and topic you're working on — I'll take it from there.`;
+
+// Speech Recognition type declarations
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: Event) => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
@@ -45,6 +89,9 @@ export default function ChatPage() {
     state: 'NSW',
   });
   const [conversationStage, setConversationStage] = useState<'start' | 'topic' | 'scope' | 'building' | 'done'>('start');
+  const [voiceListening, setVoiceListening] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Load saved data on mount
@@ -83,6 +130,65 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Voice toggle
+  const toggleVoice = useCallback(() => {
+    if (voiceListening) {
+      recognitionRef.current?.stop();
+      setVoiceListening(false);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Speech recognition not supported in this browser');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-AU';
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalTranscript += result[0].transcript;
+        } else {
+          interimTranscript += result[0].transcript;
+        }
+      }
+
+      setTranscript(interimTranscript || finalTranscript);
+
+      if (finalTranscript) {
+        setInput(finalTranscript);
+        setVoiceListening(false);
+        recognition.stop();
+        // Auto-submit
+        handleSend(finalTranscript);
+      }
+    };
+
+    recognition.onend = () => {
+      setVoiceListening(false);
+      setTranscript('');
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event);
+      setVoiceListening(false);
+      setTranscript('');
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setVoiceListening(true);
+  }, [voiceListening, input]);
+
   const savePrefs = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
     setShowPrefs(false);
@@ -91,8 +197,7 @@ export default function ChatPage() {
   const handleSend = async (promptText?: string) => {
     const text = promptText || input;
     if (!text.trim()) return;
-    
-    // Update conversation stage based on input
+
     if (text.toLowerCase().includes('year') || text.match(/\d/)) {
       setConversationStage('topic');
     } else if (text.toLowerCase().includes('topic') || text.toLowerCase().includes('teach')) {
@@ -105,7 +210,7 @@ export default function ChatPage() {
       content: text,
       timestamp: new Date(),
     };
-    
+
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
@@ -119,14 +224,14 @@ export default function ChatPage() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           messages: [...conversationHistory, { role: 'user', content: text }],
-          teacherPrefs: prefs 
+          teacherPrefs: prefs
         }),
       });
 
       const data = await response.json();
-      
+
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -135,7 +240,6 @@ export default function ChatPage() {
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
-      // Friendly fallback
       setTimeout(() => {
         const aiMsg: Message = {
           id: (Date.now() + 1).toString(),
@@ -163,56 +267,49 @@ export default function ChatPage() {
 
   const renderMessage = (content: string) => {
     return content.split('\n').map((line, i) => {
-      // Headers
       if (line.startsWith('### ')) {
-        return <h4 key={i} className="text-sm font-semibold text-[#00D4AA] mt-3 mb-1">{line.replace('### ', '')}</h4>;
+        return <h4 key={i} className="text-sm font-semibold mt-3 mb-1" style={{ color: 'var(--color-accent)' }}>{line.replace('### ', '')}</h4>;
       }
       if (line.startsWith('## ')) {
-        return <h3 key={i} className="text-base font-semibold text-[#00D4AA] mt-4 mb-2">{line.replace('## ', '')}</h3>;
+        return <h3 key={i} className="text-base font-semibold mt-4 mb-2" style={{ color: 'var(--color-accent)' }}>{line.replace('## ', '')}</h3>;
       }
       if (line.startsWith('# ')) {
         return <h2 key={i} className="text-lg font-bold text-white mt-4 mb-2">{line.replace('# ', '')}</h2>;
       }
-      // Bold
       if (line.startsWith('**') && line.endsWith('**') && !line.includes('**', 2)) {
         return <p key={i} className="font-semibold text-white mt-2">{line.replace(/\*\*/g, '')}</p>;
       }
-      // Lists
       if (line.startsWith('- ') || line.startsWith('* ')) {
         const text = line.replace(/^[-*]\s*/, '');
         if (text.match(/^\d+\./)) {
-          return <li key={i} className="ml-3 text-sm text-[#E6EDF3]">{text.replace(/^\d+\.\s*/, '')}</li>;
+          return <li key={i} className="ml-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{text.replace(/^\d+\.\s*/, '')}</li>;
         }
         return (
-          <li key={i} className="ml-3 text-sm text-[#E6EDF3] flex gap-2">
-            <span className="text-[#00D4AA] mt-1">•</span>
+          <li key={i} className="ml-3 text-sm flex gap-2" style={{ color: 'var(--color-text-secondary)' }}>
+            <span style={{ color: 'var(--color-accent)' }}>•</span>
             <span>{text}</span>
           </li>
         );
       }
-      // Numbered lists
       if (line.match(/^\d+\.\s/)) {
         const num = line.match(/^(\d+)\./)?.[1] || '1';
         const text = line.replace(/^\d+\.\s*/, '');
         return (
-          <li key={i} className="ml-3 text-sm text-[#E6EDF3] flex gap-2">
-            <span className="text-[#00D4AA] font-semibold min-w-[1.5rem]">{num}.</span>
+          <li key={i} className="ml-3 text-sm flex gap-2" style={{ color: 'var(--color-text-secondary)' }}>
+            <span style={{ color: 'var(--color-accent)' }} className="font-semibold min-w-[1.5rem]">{num}.</span>
             <span>{text}</span>
           </li>
         );
       }
-      // Code blocks
       if (line.startsWith('```')) {
         return null;
       }
-      // Empty lines
       if (line.trim() === '') {
         return <br key={i} />;
       }
-      // Regular paragraphs with inline bold
       return (
-        <p key={i} className="text-sm text-[#E6EDF3] my-1">
-          {line.split(/\*\*(.*?)\*\*/g).map((part, j) => 
+        <p key={i} className="text-sm my-1" style={{ color: 'var(--color-text-secondary)' }}>
+          {line.split(/\*\*(.*?)\*\*/g).map((part, j) =>
             j % 2 === 1 ? <strong key={j} className="text-white">{part}</strong> : part
           )}
         </p>
@@ -226,10 +323,10 @@ export default function ChatPage() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <span className="text-[#00D4AA]">◈</span>
+            <Sparkles className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />
             Unit Planning Assistant
           </h2>
-          <p className="text-xs text-[#6E7681]">
+          <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
             {prefs.yearLevel && prefs.subject ? `${prefs.yearLevel} ${prefs.subject}` : 'Start a conversation'}
             {prefs.name && ` — ${prefs.name}`}
           </p>
@@ -237,15 +334,18 @@ export default function ChatPage() {
         <div className="flex gap-2">
           <button
             onClick={() => setShowPrefs(!showPrefs)}
-            className="p-2 rounded-lg bg-[#161B22] border border-[#30363D] text-[#8B949E] hover:text-[#00D4AA] hover:border-[#00D4AA]/50 transition-all text-sm"
+            className="p-2 rounded-lg text-sm transition-all flex items-center gap-1"
+            style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
             title="Teacher preferences"
           >
-            ◎
+            <Settings className="w-4 h-4" />
           </button>
           <button
             onClick={clearHistory}
-            className="px-3 py-1.5 rounded-lg bg-[#161B22] border border-[#30363D] text-[#8B949E] hover:text-[#EF4444] hover:border-[#EF4444]/50 transition-all text-xs"
+            className="px-3 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1"
+            style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
           >
+            <Trash2 className="w-3 h-3" />
             Clear
           </button>
         </div>
@@ -253,25 +353,27 @@ export default function ChatPage() {
 
       {/* Teacher Preferences Panel */}
       {showPrefs && (
-        <div className="mb-4 p-4 rounded-xl border border-[#30363D] bg-[#161B22] animate-slide-down">
+        <div className="mb-4 p-4 rounded-xl border animate-fade-in" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
           <h3 className="text-sm font-semibold text-white mb-3">Your Teaching Context</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-[#6E7681] mb-1 block">Your Name</label>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Your Name</label>
               <input
                 type="text"
                 value={prefs.name}
                 onChange={(e) => setPrefs({ ...prefs, name: e.target.value })}
                 placeholder="Optional"
-                className="w-full px-3 py-2 rounded-lg bg-[#0D1117] border border-[#30363D] text-white text-sm outline-none focus:border-[#00D4AA]/50"
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
+                style={{ backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'white' }}
               />
             </div>
             <div>
-              <label className="text-xs text-[#6E7681] mb-1 block">State</label>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-muted)' }}>State</label>
               <select
                 value={prefs.state}
                 onChange={(e) => setPrefs({ ...prefs, state: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg bg-[#0D1117] border border-[#30363D] text-white text-sm outline-none focus:border-[#00D4AA]/50"
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
+                style={{ backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'white' }}
               >
                 {['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'].map(s => (
                   <option key={s} value={s}>{s}</option>
@@ -279,29 +381,32 @@ export default function ChatPage() {
               </select>
             </div>
             <div>
-              <label className="text-xs text-[#6E7681] mb-1 block">Year Level</label>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Year Level</label>
               <input
                 type="text"
                 value={prefs.yearLevel}
                 onChange={(e) => setPrefs({ ...prefs, yearLevel: e.target.value })}
                 placeholder="e.g. Year 4"
-                className="w-full px-3 py-2 rounded-lg bg-[#0D1117] border border-[#30363D] text-white text-sm outline-none focus:border-[#00D4AA]/50"
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
+                style={{ backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'white' }}
               />
             </div>
             <div>
-              <label className="text-xs text-[#6E7681] mb-1 block">Subject Focus</label>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Subject Focus</label>
               <input
                 type="text"
                 value={prefs.subject}
                 onChange={(e) => setPrefs({ ...prefs, subject: e.target.value })}
                 placeholder="e.g. Mathematics"
-                className="w-full px-3 py-2 rounded-lg bg-[#0D1117] border border-[#30363D] text-white text-sm outline-none focus:border-[#00D4AA]/50"
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
+                style={{ backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'white' }}
               />
             </div>
           </div>
           <button
             onClick={savePrefs}
-            className="mt-3 px-4 py-2 rounded-lg bg-[#00D4AA] text-[#0D1117] text-sm font-medium hover:bg-[#00E4BA] transition-all"
+            className="mt-3 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}
           >
             Save Preferences
           </button>
@@ -310,42 +415,50 @@ export default function ChatPage() {
 
       {/* Stage Indicator */}
       <div className="flex items-center gap-2 mb-4 text-xs">
-        <span className={`px-2 py-1 rounded-full ${conversationStage === 'start' ? 'bg-[#00D4AA]/20 text-[#00D4AA]' : 'bg-[#30363D] text-[#6E7681]'}`}>
-          Start
-        </span>
-        <div className="flex-1 h-px bg-[#30363D]" />
-        <span className={`px-2 py-1 rounded-full ${conversationStage === 'topic' ? 'bg-[#00D4AA]/20 text-[#00D4AA]' : 'bg-[#30363D] text-[#6E7681]'}`}>
-          Topic
-        </span>
-        <div className="flex-1 h-px bg-[#30363D]" />
-        <span className={`px-2 py-1 rounded-full ${conversationStage === 'scope' ? 'bg-[#00D4AA]/20 text-[#00D4AA]' : 'bg-[#30363D] text-[#6E7681]'}`}>
-          Scope
-        </span>
-        <div className="flex-1 h-px bg-[#30363D]" />
-        <span className={`px-2 py-1 rounded-full ${conversationStage === 'building' ? 'bg-[#00D4AA]/20 text-[#00D4AA]' : 'bg-[#30363D] text-[#6E7681]'}`}>
-          Building
-        </span>
+        {['start', 'topic', 'scope', 'building'].map((stage, i) => (
+          <div key={stage} className="flex items-center gap-2">
+            <span
+              className="px-2 py-1 rounded-full transition-all"
+              style={
+                conversationStage === stage
+                  ? { backgroundColor: 'var(--color-accent-dim)', color: 'var(--color-accent)' }
+                  : { backgroundColor: 'var(--color-border)', color: 'var(--color-text-muted)' }
+              }
+            >
+              {stage.charAt(0).toUpperCase() + stage.slice(1)}
+            </span>
+            {i < 3 && <div className="flex-1 h-px" style={{ backgroundColor: 'var(--color-border)' }} />}
+          </div>
+        ))}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto rounded-xl border border-[#30363D] bg-[#161B22] p-4 mb-4 space-y-4">
+      <div
+        className="flex-1 overflow-y-auto rounded-xl border p-4 mb-4 space-y-4"
+        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      >
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div
               className="max-w-[85%] rounded-2xl px-5 py-4"
               style={{
-                backgroundColor: msg.role === 'user' ? '#00D4AA' : '#1C2128',
-                border: msg.role === 'user' ? 'none' : '1px solid #30363D',
+                backgroundColor: msg.role === 'user' ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+                border: msg.role === 'user' ? 'none' : '1px solid var(--color-border)',
                 borderBottomLeftRadius: msg.role === 'assistant' ? '4px' : '2rem',
               }}
             >
-              <div className="text-xs font-medium mb-2" style={{ color: msg.role === 'user' ? 'rgba(0,0,0,0.4)' : '#00D4AA' }}>
+              <div
+                className="text-xs font-medium mb-2"
+                style={{
+                  color: msg.role === 'user' ? 'rgba(255,255,255,0.7)' : 'var(--color-accent)'
+                }}
+              >
                 {msg.role === 'user' ? (prefs.name || 'You') : '◈ TeachWise AI'}
               </div>
-              <div className="text-sm leading-relaxed">
+              <div className="text-sm leading-relaxed text-white">
                 {renderMessage(msg.content)}
               </div>
-              <div className="text-xs mt-2" style={{ color: msg.role === 'user' ? 'rgba(0,0,0,0.4)' : '#6E7681' }}>
+              <div className="text-xs mt-2" style={{ color: msg.role === 'user' ? 'rgba(255,255,255,0.7)' : 'var(--color-text-muted)' }}>
                 {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
@@ -354,14 +467,17 @@ export default function ChatPage() {
 
         {isTyping && (
           <div className="flex justify-start">
-            <div className="rounded-2xl px-5 py-4 bg-[#1C2128] border border-[#30363D]" style={{ borderBottomLeftRadius: '4px' }}>
+            <div
+              className="rounded-2xl px-5 py-4"
+              style={{ backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', borderBottomLeftRadius: '4px' }}
+            >
               <div className="flex items-center gap-3">
                 <div className="flex gap-1">
-                  <span className="w-2 h-2 rounded-full animate-bounce bg-[#00D4AA]" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 rounded-full animate-bounce bg-[#00D4AA]" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 rounded-full animate-bounce bg-[#00D4AA]" style={{ animationDelay: '300ms' }} />
+                  <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '300ms' }} />
                 </div>
-                <span className="text-xs text-[#6E7681]">Planning your unit...</span>
+                <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Planning your unit...</span>
               </div>
             </div>
           </div>
@@ -381,9 +497,10 @@ export default function ChatPage() {
             <Link
               key={action.label}
               href={href}
-              className="px-3 py-2 rounded-lg text-xs bg-[#0D1117] border border-[#30363D] text-[#8B949E] hover:border-[#00D4AA]/50 hover:text-[#00D4AA] transition-all flex items-center gap-2"
+              className="px-3 py-2 rounded-lg text-xs transition-all flex items-center gap-2"
+              style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
             >
-              <span className="text-[#00D4AA]">{action.icon}</span>
+              <action.icon className="w-3 h-3" style={{ color: 'var(--color-accent)' }} />
               {action.label}
             </Link>
           );
@@ -391,33 +508,63 @@ export default function ChatPage() {
       </div>
 
       {/* Tip */}
-      <p className="text-xs text-[#6E7681] text-center mt-3">
+      <p className="text-xs text-center mt-3 mb-3" style={{ color: 'var(--color-text-muted)' }}>
         Tip: I can also help with rubric design, unit planning, and auto-marking student work
       </p>
 
-      {/* Input */}
-      <div className="flex gap-3">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-          placeholder="Tell me what you want to teach..."
-          className="flex-1 px-5 py-4 rounded-2xl border border-[#30363D] bg-[#161B22] text-white text-sm outline-none transition-all focus:border-[#00D4AA]/50 focus:ring-2 focus:ring-[#00D4AA]/10"
-        />
+      {/* Input with Voice */}
+      <div className="flex gap-3 items-end">
+        <div className="flex-1 relative">
+          {(voiceListening || transcript) && (
+            <div
+              className="absolute -top-8 left-0 right-0 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs animate-pulse-glow"
+              style={{ backgroundColor: 'var(--color-accent-dim)', color: 'var(--color-accent)' }}
+            >
+              <Mic className="w-3 h-3" />
+              {transcript || 'Listening...'}
+            </div>
+          )}
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Tell me what you want to teach..."
+            rows={1}
+            className="w-full px-5 py-4 rounded-2xl border text-sm outline-none transition-all resize-none"
+            style={{ backgroundColor: 'var(--color-surface-raised)', borderColor: 'var(--color-border)', color: 'white' }}
+          />
+        </div>
+
+        {/* Mic Button */}
+        <button
+          onClick={toggleVoice}
+          className={`p-4 rounded-2xl transition-all flex-shrink-0 ${
+            voiceListening ? 'animate-pulse-glow' : ''
+          }`}
+          style={{
+            backgroundColor: voiceListening ? 'var(--color-accent)' : 'var(--color-surface-raised)',
+            border: voiceListening ? 'none' : '1px solid var(--color-border)',
+            color: voiceListening ? 'white' : 'var(--color-text-muted)',
+          }}
+          title={voiceListening ? 'Stop listening' : 'Start voice input'}
+        >
+          {voiceListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+        </button>
+
+        {/* Send Button */}
         <button
           onClick={() => handleSend()}
-          disabled={!input.trim() || isTyping}
-          className="px-8 py-4 rounded-2xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-[#00D4AA] text-[#0D1117] hover:bg-[#00E4BA] shadow-lg shadow-[#00D4AA]/20"
+          disabled={(!input.trim() && !transcript) || isTyping}
+          className="px-8 py-4 rounded-2xl text-sm font-semibold transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}
         >
-          {isTyping ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            </span>
-          ) : 'Send'}
+          <Send className="w-4 h-4" />
+          Send
         </button>
       </div>
     </div>

@@ -2,13 +2,14 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { ClipboardList, Copy, Printer, Loader2, ChevronDown } from 'lucide-react';
 
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center py-16">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm text-slate-500">Loading...</span>
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-accent)' }} />
+        <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Loading...</span>
       </div>
     </div>
   );
@@ -44,9 +45,8 @@ interface RubricResult {
 }
 
 function RubricsContent() {
-    const searchParams = useSearchParams();
+  const searchParams = useSearchParams();
 
-  // Pre-fill from URL params on mount
   useEffect(() => {
     const year = searchParams.get('year');
     const subjectParam = searchParams.get('subject');
@@ -134,23 +134,23 @@ function RubricsContent() {
     <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-          <span className="text-emerald-600 text-3xl">✧</span>
+        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+          <ClipboardList className="w-6 h-6" style={{ color: 'var(--color-accent)' }} />
           Rubric Generator
         </h2>
-        <p className="text-slate-500 mt-1">Create aligned assessment rubrics for Australian F-6 classrooms</p>
+        <p className="mt-1" style={{ color: 'var(--color-text-muted)' }}>Create aligned assessment rubrics for Australian F-6 classrooms</p>
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
+      <form onSubmit={handleSubmit} className="rounded-2xl p-6 mb-8" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Year Level */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Year Level</label>
+            <label className="label-dark">Year Level</label>
             <select
               value={yearLevel}
               onChange={(e) => setYearLevel(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-slate-800 font-medium input-glow"
+              className="input-dark"
               required
             >
               <option value="">Select year level...</option>
@@ -162,11 +162,11 @@ function RubricsContent() {
 
           {/* Subject */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Subject</label>
+            <label className="label-dark">Subject</label>
             <select
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-slate-800 font-medium input-glow"
+              className="input-dark"
               required
             >
               <option value="">Select subject...</option>
@@ -178,61 +178,63 @@ function RubricsContent() {
 
           {/* Topic */}
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700 mb-2">Topic / Focus Area</label>
+            <label className="label-dark">Topic / Focus Area</label>
             <input
               type="text"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="e.g., Narrative writing, Fractions, Colonial Australia..."
-              className="w-full px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-slate-800 placeholder-slate-400 font-medium input-glow"
+              className="input-dark"
               required
             />
           </div>
 
           {/* Rubric Type */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Rubric Type</label>
+            <label className="label-dark">Rubric Type</label>
             <div className="flex gap-3">
               {RUBRIC_TYPES.map(type => (
                 <button
                   key={type}
                   type="button"
                   onClick={() => setRubricType(type as 'analytic' | 'holistic')}
-                  className={`flex-1 px-4 py-3 rounded-xl font-medium text-sm transition-all ${
+                  className="flex-1 px-4 py-3 rounded-xl font-medium text-sm transition-all"
+                  style={
                     rubricType === type
-                      ? 'bg-emerald-600 text-white shadow-md'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
+                      ? { backgroundColor: 'var(--color-accent)', color: 'white' }
+                      : { backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }
+                  }
                 >
                   {type.charAt(0).toUpperCase() + type.slice(1)}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
               {rubricType === 'analytic' ? 'Separate criteria for each aspect' : 'Overall judgment per criterion'}
             </p>
           </div>
 
           {/* Level Count */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Number of Levels</label>
+            <label className="label-dark">Number of Levels</label>
             <div className="flex gap-3">
               {LEVEL_COUNTS.map(count => (
                 <button
                   key={count}
                   type="button"
                   onClick={() => setLevelCount(count)}
-                  className={`flex-1 px-4 py-3 rounded-xl font-medium text-sm transition-all ${
+                  className="flex-1 px-4 py-3 rounded-xl font-medium text-sm transition-all"
+                  style={
                     levelCount === count
-                      ? 'bg-emerald-600 text-white shadow-md'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
+                      ? { backgroundColor: 'var(--color-accent)', color: 'white' }
+                      : { backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }
+                  }
                 >
                   {count}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
               {levelCount === '3' ? 'Beginning → Developing → Extending' :
                levelCount === '4' ? 'Beginning → Developing → Proficient → Extending' :
                'Beginning → Developing → Proficient → Accomplished → Extending'}
@@ -244,19 +246,18 @@ function RubricsContent() {
         <button
           type="submit"
           disabled={isLoading || !yearLevel || !subject || !topic}
-          className="mt-6 w-full py-4 rounded-xl bg-emerald-600 text-white font-semibold text-lg shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+          className="mt-6 w-full py-4 rounded-xl text-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+          style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}
         >
           {isLoading ? (
             <>
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
+              <Loader2 className="w-5 h-5 animate-spin" />
               Generating Rubric...
             </>
           ) : (
             <>
-              <span>✧</span> Generate Rubric
+              <ClipboardList className="w-5 h-5" />
+              Generate Rubric
             </>
           )}
         </button>
@@ -264,24 +265,32 @@ function RubricsContent() {
 
       {/* Results */}
       {result && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
           {/* Toolbar */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
-            <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-              <span className="text-emerald-600">✧</span> Generated Rubric
+          <div
+            className="flex items-center justify-between px-6 py-4"
+            style={{ backgroundColor: 'var(--color-surface-raised)', borderBottom: '1px solid var(--color-border)' }}
+          >
+            <h3 className="font-semibold text-white flex items-center gap-2">
+              <ClipboardList className="w-4 h-4" style={{ color: 'var(--color-accent)' }} />
+              Generated Rubric
             </h3>
             <div className="flex gap-2">
               <button
                 onClick={copyToClipboard}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-all flex items-center gap-2"
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+                style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
               >
-                {copied ? '✓ Copied!' : '📋 Copy'}
+                <Copy className="w-4 h-4" />
+                {copied ? '✓ Copied!' : 'Copy'}
               </button>
               <button
                 onClick={handlePrint}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-all flex items-center gap-2"
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+                style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
               >
-                🖨️ Print
+                <Printer className="w-4 h-4" />
+                Print
               </button>
             </div>
           </div>
@@ -293,11 +302,18 @@ function RubricsContent() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr>
-                      <th className="text-left p-4 bg-emerald-50 text-slate-800 font-semibold border border-slate-200 min-w-[180px]">
+                      <th
+                        className="text-left p-4 font-semibold border"
+                        style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: 'var(--color-text)', borderColor: 'var(--color-border)', minWidth: '180px' }}
+                      >
                         Criterion
                       </th>
                       {parsed.headers.slice(1).map((header, i) => (
-                        <th key={i} className="p-4 text-center bg-emerald-50 text-slate-800 font-semibold border border-slate-200 min-w-[200px]">
+                        <th
+                          key={i}
+                          className="p-4 text-center font-semibold border"
+                          style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: 'var(--color-text)', borderColor: 'var(--color-border)', minWidth: '200px' }}
+                        >
                           {header}
                         </th>
                       ))}
@@ -305,12 +321,19 @@ function RubricsContent() {
                   </thead>
                   <tbody>
                     {parsed.rows.map((row, rowIndex) => (
-                      <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                        <td className="p-4 font-medium text-slate-800 border border-slate-200">
+                      <tr key={rowIndex}>
+                        <td
+                          className="p-4 font-medium border"
+                          style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)', backgroundColor: rowIndex % 2 === 0 ? 'var(--color-surface)' : 'var(--color-surface-raised)' }}
+                        >
                           {row[0]}
                         </td>
                         {row.slice(1).map((cell, cellIndex) => (
-                          <td key={cellIndex} className="p-4 text-sm text-slate-600 border border-slate-200">
+                          <td
+                            key={cellIndex}
+                            className="p-4 text-sm border"
+                            style={{ color: 'var(--color-text-secondary)', borderColor: 'var(--color-border)', backgroundColor: rowIndex % 2 === 0 ? 'var(--color-surface)' : 'var(--color-surface-raised)' }}
+                          >
                             {cell}
                           </td>
                         ))}
@@ -320,16 +343,20 @@ function RubricsContent() {
                 </table>
               </div>
             ) : (
-              <div className="prose prose-slate max-w-none">
-                <pre className="whitespace-pre-wrap text-sm text-slate-700 bg-slate-50 p-4 rounded-xl font-mono overflow-x-auto">
-                  {result}
-                </pre>
-              </div>
+              <pre
+                className="whitespace-pre-wrap text-sm p-4 rounded-xl overflow-x-auto"
+                style={{ color: 'var(--color-text)', backgroundColor: 'var(--color-surface-raised)' }}
+              >
+                {result}
+              </pre>
             )}
           </div>
 
           {/* Context footer */}
-          <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 text-xs text-slate-500">
+          <div
+            className="px-6 py-4"
+            style={{ backgroundColor: 'var(--color-surface-raised)', color: 'var(--color-text-muted)' }}
+          >
             {yearLevel && subject && topic && (
               <span>Generated for: Year {yearLevel} {subject} — {topic}</span>
             )}
