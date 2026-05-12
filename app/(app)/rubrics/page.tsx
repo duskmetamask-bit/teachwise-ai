@@ -14,8 +14,6 @@ function LoadingSpinner() {
   );
 }
 
-function RubricsContent() {
-
 const YEAR_LEVELS = ['F', '1', '2', '3', '4', '5', '6'];
 const SUBJECTS = ['English', 'Mathematics', 'Science', 'HASS', 'Digital Technologies', 'Health'];
 const RUBRIC_TYPES = ['analytic', 'holistic'];
@@ -46,15 +44,7 @@ interface RubricResult {
 }
 
 function RubricsContent() {
-  const searchParams = useSearchParams();
-  const [yearLevel, setYearLevel] = useState('');
-  const [subject, setSubject] = useState('');
-  const [topic, setTopic] = useState('');
-  const [rubricType, setRubricType] = useState<'analytic' | 'holistic'>('analytic');
-  const [levelCount, setLevelCount] = useState('4');
-  const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState('');
-  const [copied, setCopied] = useState(false);
+    const searchParams = useSearchParams();
 
   // Pre-fill from URL params on mount
   useEffect(() => {
@@ -63,6 +53,15 @@ function RubricsContent() {
     if (year) setYearLevel(decodeURIComponent(year).replace('Year ', ''));
     if (subjectParam) setSubject(decodeURIComponent(subjectParam));
   }, [searchParams]);
+
+  const [yearLevel, setYearLevel] = useState('');
+  const [subject, setSubject] = useState('');
+  const [topic, setTopic] = useState('');
+  const [rubricType, setRubricType] = useState<'analytic' | 'holistic'>('analytic');
+  const [levelCount, setLevelCount] = useState('4');
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -349,5 +348,13 @@ function RubricsContent() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function RubricsPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <RubricsContent />
+    </Suspense>
   );
 }

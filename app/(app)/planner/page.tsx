@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SavedPlan } from '@/app/lib/types';
 
@@ -64,7 +64,7 @@ function extractAc9Codes(content: string): string[] {
   return [...new Set(matches.map(c => c.toUpperCase()))];
 }
 
-export default function PlannerPage() {
+function PlannerContent() {
   const searchParams = useSearchParams();
   const [subject, setSubject] = useState('');
   const [yearLevel, setYearLevel] = useState('');
@@ -343,5 +343,24 @@ export default function PlannerPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center py-16">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm text-slate-500">Loading...</span>
+      </div>
+    </div>
+  );
+}
+
+export default function PlannerPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <PlannerContent />
+    </Suspense>
   );
 }

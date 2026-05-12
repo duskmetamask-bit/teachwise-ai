@@ -14,7 +14,19 @@ function LoadingSpinner() {
   );
 }
 
-function AutomarkContent() {
+type CriterionFeedback = {
+  name: string;
+  grade: string;
+  feedback: string;
+};
+
+type MarkingResult = {
+  overallGrade: string;
+  criteria: CriterionFeedback[];
+  strengths: string[];
+  areasForDevelopment: string[];
+  nextSteps: string[];
+};
 
 const AUTO_MARK_SYSTEM_PROMPT = `You are an expert Australian teacher assessor with deep knowledge of:
 - Australian Curriculum v9 (AC9) achievement standards and assessment rubrics
@@ -44,25 +56,11 @@ Always respond in this structured format (use markdown):
 - [Specific area 3]
 
 ### Next Steps
-1. [Specific next step 1]
-2. [Specific next step 2]
-3. [Specific next step 3]
+1. [Actionable next step 1]
+2. [Actionable next step 2]
+3. [Actionable next step 3]
 
-Be thorough, specific, and constructive. Reference actual content from the student's work in your feedback.`;
-
-type CriterionFeedback = {
-  name: string;
-  grade: string;
-  feedback: string;
-};
-
-type MarkingResult = {
-  overallGrade: string;
-  criteria: CriterionFeedback[];
-  strengths: string[];
-  areasForDevelopment: string[];
-  nextSteps: string[];
-};
+Be specific and constructive. Ground your feedback in the actual evidence from the student's work.`;
 
 function parseResult(text: string): MarkingResult {
   const result: MarkingResult = {
