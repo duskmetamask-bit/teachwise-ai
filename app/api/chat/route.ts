@@ -57,7 +57,7 @@ Start every conversation ready to help them build something great.`;
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, teacherPrefs } = await req.json();
+    const { messages, teacherPrefs, customSystemPrompt } = await req.json();
     
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
@@ -84,8 +84,10 @@ export async function POST(req: NextRequest) {
       prefsContext += `\n\n`;
     }
 
+    // Use custom system prompt if provided, otherwise use default
+    const activeSystemPrompt = customSystemPrompt || SYSTEM_PROMPT;
     const prompt = `${prefsContext}${context}\n**Current message from teacher:**\n${lastMessage}`;
-    
+
     // Call MiniMax API
     const response = await fetch('https://api.minimaxi.chat/v1/text/chatcompletion_v2', {
       method: 'POST',
@@ -96,7 +98,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: 'MiniMax-Text-01',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: activeSystemPrompt },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,

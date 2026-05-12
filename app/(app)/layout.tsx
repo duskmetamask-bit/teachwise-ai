@@ -7,9 +7,10 @@ import { usePathname } from 'next/navigation';
 const navItems = [
   { label: 'Dashboard', href: '/', icon: '◈' },
   { label: 'AI Chat', href: '/chat', icon: '✧' },
+  { label: 'Rubrics', href: '/rubrics', icon: '◉' },
   { label: 'Unit Library', href: '/units', icon: '◇' },
   { label: 'Lesson Planner', href: '/planner', icon: '◎' },
-  { label: 'Auto-Marking', href: '/automark', icon: '◉' },
+  { label: 'Auto-Marking', href: '/automark', icon: '◈' },
   { label: 'Profile', href: '/profile', icon: '◈' },
 ];
 
