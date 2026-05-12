@@ -14,13 +14,17 @@ const quickActions = [
   { label: 'Mark student work', icon: '◎', targetPage: '/automark', prefill: 'automark' },
 ];
 
-const defaultWelcome = `👋 **Welcome to TeachWise AI**
+const defaultWelcome = `👋 **TeachWise AI — your teaching assistant**
 
-I'm here to help you plan units, lessons, and assessments aligned to the Australian Curriculum (AC9).
+I'm aligned to the Australian Curriculum v9 (AC9) and I'm here to help you build better lessons, faster.
 
-**Let's start planning!**
+**What I can help with:**
+• **Lesson planning** — AC9-aligned, with content descriptors, elaborations, and cross-curriculum priorities
+• **Rubrics** — Analytic or holistic, linked to achievement standards by year level
+• **Unit building** — Structured sequences with duration, assessment, and resources
+• **Auto-marking** — Upload student work + rubric, get structured feedback instantly
 
-What year level and subject are you working with? Or tell me what you're trying to teach — I'll guide you through the rest.`;
+Just tell me what year level, subject, and topic you're working on — I'll take it from there.`;
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
@@ -385,6 +389,11 @@ export default function ChatPage() {
           );
         })}
       </div>
+
+      {/* Tip */}
+      <p className="text-xs text-[#6E7681] text-center mt-3">
+        Tip: I can also help with rubric design, unit planning, and auto-marking student work
+      </p>
 
       {/* Input */}
       <div className="flex gap-3">
