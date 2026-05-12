@@ -1,31 +1,60 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { mockUnits } from '@/app/lib/mockData';
-import { UnitPlan } from '@/app/lib/types';
+import { UnitPlan, SavedPlan } from '@/app/lib/types';
 
+const STORAGE_KEY = 'teachwise_saved_plans';
 const subjects = ['All Subjects', 'Mathematics', 'English', 'Science', 'Humanities & Social Sciences', 'Digital Technologies', 'Health & Physical Education'];
 const yearLevels = ['All Years', 'Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5', 'Year 6'];
+
+function savedPlanToUnit(plan: SavedPlan): UnitPlan {
+  return {
+    id: plan.id,
+    title: plan.title,
+    subject: plan.subject,
+    yearLevel: plan.yearLevel,
+    topic: plan.topic,
+    description: `Saved on ${plan.dateSaved}`,
+    duration: 'Custom',
+    lessons: 1,
+    overview: '',
+    content: plan.rawContent,
+    ac9Codes: plan.ac9Codes,
+    outcomes: plan.ac9Codes,
+    createdAt: new Date(plan.dateSaved),
+  };
+}
 
 export default function UnitsPage() {
   const [selectedSubject, setSelectedSubject] = useState('All Subjects');
   const [selectedYear, setSelectedYear] = useState('All Years');
   const [selectedUnit, setSelectedUnit] = useState<UnitPlan | null>(null);
   const [search, setSearch] = useState('');
+  const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
+  const [units, setUnits] = useState<UnitPlan[]>([]);
 
-  const filtered = mockUnits.filter((u) => {
+  useEffect(() => {
+    const stored: SavedPlan[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    setSavedPlans(stored);
+    setUnits([...stored.map(savedPlanToUnit), ...mockUnits]);
+  }, []);
+
+  const filtered = units.filter((u) => {
     const matchSubject = selectedSubject === 'All Subjects' || u.subject === selectedSubject;
     const matchYear = selectedYear === 'All Years' || u.yearLevel === selectedYear;
     const matchSearch = !search || u.topic.toLowerCase().includes(search.toLowerCase()) || u.description.toLowerCase().includes(search.toLowerCase());
     return matchSubject && matchYear && matchSearch;
   });
 
+  const totalCount = savedPlans.length + mockUnits.length;
+
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-white mb-1">Unit Library</h2>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {mockUnits.length} AC9-aligned unit plans ready to use
+          {totalCount} unit plans ready to use
         </p>
       </div>
 

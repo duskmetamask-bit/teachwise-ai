@@ -56,6 +56,17 @@ export interface LessonPlan {
   createdAt: Date;
 }
 
+export interface SavedPlan {
+  id: string;
+  title: string;
+  yearLevel: string;
+  subject: string;
+  topic: string;
+  ac9Codes: string[];
+  dateSaved: string;
+  rawContent: string;
+}
+
 export interface ChatResponse {
   response: string;
   context?: {
