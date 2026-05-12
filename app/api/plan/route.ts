@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       plan,
       metadata: {
-        ac9Codes: [...new Set(ac9Codes.map(c => c.toUpperCase()))],
+        ac9Codes: Array.from(new Set(ac9Codes.map((c: string) => c.toUpperCase()))),
         lessonCount,
       }
     });
