@@ -67,11 +67,42 @@ interface TeacherPrefs {
   state?: string;
 }
 
+interface ClassContext {
+  className?: string;
+  yearLevel?: string;
+  subject?: string;
+  classSize?: string;
+  esalD?: string;
+  aboveLevel?: string;
+  support?: string;
+  topicsCovered?: string;
+  specificNeeds?: string;
+}
+
 function buildAnthropicMessages(
   messages: Message[],
   teacherPrefs: TeacherPrefs,
-  systemPrompt: string
+  systemPrompt: string,
+  classContext?: ClassContext
 ): { system: string; messages: Array<{ role: string; content: string }> } {
+  // Build class context string
+  let classContextStr = '';
+  if (classContext) {
+    const parts: string[] = [];
+    if (classContext.className) parts.push(`Class: ${classContext.className}`);
+    if (classContext.yearLevel) parts.push(`Year Level: ${classContext.yearLevel}`);
+    if (classContext.subject) parts.push(`Subject: ${classContext.subject}`);
+    if (classContext.classSize) parts.push(`Size: ${classContext.classSize}`);
+    if (classContext.esalD) parts.push(`EAL/D: ${classContext.esalD}`);
+    if (classContext.aboveLevel) parts.push(`Above level: ${classContext.aboveLevel}`);
+    if (classContext.support) parts.push(`Support: ${classContext.support}`);
+    if (classContext.topicsCovered) parts.push(`Topics covered: ${classContext.topicsCovered}`);
+    if (classContext.specificNeeds) parts.push(`Specific needs: ${classContext.specificNeeds}`);
+    if (parts.length > 0) {
+      classContextStr = `**Class Context:**\n${parts.join('\n')}\n\n`;
+    }
+  }
+
   // Build context from conversation history
   let history = '';
   if (messages.length > 1) {
@@ -93,7 +124,7 @@ function buildAnthropicMessages(
   }
 
   const lastMsg = messages[messages.length - 1];
-  const userContent = `${prefsContext}${history}**Current message:**\n${lastMsg?.content || ''}`;
+  const userContent = `${classContextStr}${prefsContext}${history}**Current message:**\n${lastMsg?.content || ''}`;
 
   return {
     system: systemPrompt,
@@ -115,7 +146,7 @@ function extractTextContent(content: any[]): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, teacherPrefs, customSystemPrompt } = await req.json();
+    const { messages, teacherPrefs, customSystemPrompt, classContext } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
@@ -127,7 +158,8 @@ export async function POST(req: NextRequest) {
     const { system, messages: anthropicMessages } = buildAnthropicMessages(
       messages,
       prefs,
-      activeSystemPrompt
+      activeSystemPrompt,
+      classContext
     );
 
     const apiKey = process.env.MINIMAX_API_KEY;

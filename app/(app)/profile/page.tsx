@@ -1,120 +1,226 @@
 'use client';
 
-import { useState } from 'react';
-import { User, Save, CreditCard } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { User, Check, Loader2 } from 'lucide-react';
+
+const STORAGE_KEY = 'teachwise_class_context';
+
+const YEAR_LEVELS = ['PP', 'Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5', 'Year 6'];
+const SUBJECTS = ['English', 'Mathematics', 'Science', 'HASS', 'Technologies', 'The Arts', 'Health & PE'];
+
+interface ClassContext {
+  className: string;
+  yearLevel: string;
+  subject: string;
+  classSize: string;
+  esalD: string;
+  aboveLevel: string;
+  support: string;
+  topicsCovered: string;
+  specificNeeds: string;
+}
+
+function loadContext(): ClassContext {
+  if (typeof window === 'undefined') return emptyContext();
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return emptyContext();
+}
+
+function emptyContext(): ClassContext {
+  return {
+    className: '',
+    yearLevel: '',
+    subject: '',
+    classSize: '',
+    esalD: '',
+    aboveLevel: '',
+    support: '',
+    topicsCovered: '',
+    specificNeeds: '',
+  };
+}
 
 export default function ProfilePage() {
-  const [name, setName] = useState('Jane Doe');
-  const [email, setEmail] = useState('jane.doe@school.edu.au');
-  const [school, setSchool] = useState('Mount Pleasant Public School');
-  const [state, setState] = useState('NSW');
+  const [context, setContext] = useState<ClassContext>(emptyContext);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  useEffect(() => {
+    setContext(loadContext());
+  }, []);
+
+  const saveContext = useCallback((updated: ClassContext) => {
+    setContext(updated);
+    setSaveStatus('saving');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    setTimeout(() => {
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }, 500);
+  }, []);
+
+  const update = (field: keyof ClassContext, value: string) => {
+    saveContext({ ...context, [field]: value });
+  };
 
   return (
-    <div className="max-w-xl animate-fade-in">
+    <div className="max-w-2xl animate-fade-in">
+      {/* Header */}
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
           <User className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />
-          Profile
+          Class Context
         </h2>
         <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          Manage your account and preferences
+          Build your class profile to get AI lesson plans tailored to your students
         </p>
       </div>
 
-      {/* Avatar */}
-      <div className="flex items-center gap-4 mb-8">
-        <div
-          className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold"
-          style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}
-        >
-          JD
-        </div>
-        <div>
-          <div className="text-base font-medium text-white">{name}</div>
-          <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{email}</div>
-          <div
-            className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full text-xs"
-            style={{ backgroundColor: 'var(--color-accent-dim)', color: 'var(--color-accent)' }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }} />
-            Pro Plan
-          </div>
-        </div>
+      {/* Save indicator */}
+      <div className="flex items-center gap-2 mb-6 h-6">
+        {saveStatus === 'saving' && (
+          <span className="text-xs flex items-center gap-1.5" style={{ color: 'var(--color-text-muted)' }}>
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Saving...
+          </span>
+        )}
+        {saveStatus === 'saved' && (
+          <span className="text-xs flex items-center gap-1.5 animate-fade-in" style={{ color: 'var(--color-accent)' }}>
+            <Check className="w-3 h-3" />
+            Saved to browser
+          </span>
+        )}
       </div>
 
-      {/* Form */}
-      <div className="space-y-4">
-        <div>
-          <label className="label-dark">Full Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="input-dark"
-          />
-        </div>
-
-        <div>
-          <label className="label-dark">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="input-dark"
-          />
-        </div>
-
-        <div>
-          <label className="label-dark">School</label>
-          <input
-            type="text"
-            value={school}
-            onChange={(e) => setSchool(e.target.value)}
-            className="input-dark"
-          />
-        </div>
-
-        <div>
-          <label className="label-dark">State</label>
-          <select
-            value={state}
-            onChange={(e) => setState(e.target.value)}
-            className="input-dark"
-          >
-            {['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'].map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-
-        <button
-          className="btn-primary w-full justify-center"
-          style={{ paddingTop: '14px', paddingBottom: '14px' }}
-        >
-          <Save className="w-4 h-4" />
-          Save Changes
-        </button>
-      </div>
-
-      {/* Subscription */}
+      {/* Class Info */}
       <div
-        className="mt-8 p-5 rounded-xl border"
+        className="p-5 rounded-xl border mb-5"
         style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
       >
-        <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-medium text-white mb-4">Class Information</h3>
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <div className="text-sm font-medium text-white">Pro Plan</div>
-            <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Unlimited access to all features</div>
+            <label className="label-dark">Class Name</label>
+            <input
+              type="text"
+              value={context.className}
+              onChange={(e) => update('className', e.target.value)}
+              placeholder="e.g. 4 Blue, 6 Gold"
+              className="input-dark"
+            />
           </div>
-          <span className="text-sm font-medium" style={{ color: 'var(--color-accent)' }}>$29/month</span>
+          <div>
+            <label className="label-dark">Year Level</label>
+            <select
+              value={context.yearLevel}
+              onChange={(e) => update('yearLevel', e.target.value)}
+              className="input-dark"
+            >
+              <option value="">Select year level</option>
+              {YEAR_LEVELS.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label-dark">Subject Focus</label>
+            <select
+              value={context.subject}
+              onChange={(e) => update('subject', e.target.value)}
+              className="input-dark"
+            >
+              <option value="">Select subject</option>
+              {SUBJECTS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label-dark">Class Size</label>
+            <input
+              type="text"
+              value={context.classSize}
+              onChange={(e) => update('classSize', e.target.value)}
+              placeholder="e.g. 24 students"
+              className="input-dark"
+            />
+          </div>
         </div>
-        <button
-          className="w-full py-2 rounded-lg text-xs border transition-all flex items-center justify-center gap-2"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
-        >
-          <CreditCard className="w-3 h-3" />
-          Manage Subscription
-        </button>
+      </div>
+
+      {/* Learner Mix */}
+      <div
+        className="p-5 rounded-xl border mb-5"
+        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      >
+        <h3 className="text-sm font-medium text-white mb-4">Learner Mix</h3>
+        <p className="text-xs mb-4" style={{ color: 'var(--color-text-muted)' }}>
+          Approximate percentages of students at different levels
+        </p>
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="label-dark">EAL/D %</label>
+            <input
+              type="text"
+              value={context.esalD}
+              onChange={(e) => update('esalD', e.target.value)}
+              placeholder="e.g. 15%"
+              className="input-dark"
+            />
+          </div>
+          <div>
+            <label className="label-dark">Above Level %</label>
+            <input
+              type="text"
+              value={context.aboveLevel}
+              onChange={(e) => update('aboveLevel', e.target.value)}
+              placeholder="e.g. 20%"
+              className="input-dark"
+            />
+          </div>
+          <div>
+            <label className="label-dark">Support %</label>
+            <input
+              type="text"
+              value={context.support}
+              onChange={(e) => update('support', e.target.value)}
+              placeholder="e.g. 25%"
+              className="input-dark"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Topics & Needs */}
+      <div
+        className="p-5 rounded-xl border mb-5"
+        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      >
+        <h3 className="text-sm font-medium text-white mb-4">Topics & Needs</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="label-dark">Topics Covered Recently</label>
+            <textarea
+              value={context.topicsCovered}
+              onChange={(e) => update('topicsCovered', e.target.value)}
+              placeholder="e.g. Fractions, Narrative writing, Forces and motion..."
+              rows={3}
+              className="input-dark resize-none"
+            />
+          </div>
+          <div>
+            <label className="label-dark">Specific Needs or Notes</label>
+            <textarea
+              value={context.specificNeeds}
+              onChange={(e) => update('specificNeeds', e.target.value)}
+              placeholder="e.g. 2 students with IOPs, 3 EAL students need visual supports..."
+              rows={3}
+              className="input-dark resize-none"
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
