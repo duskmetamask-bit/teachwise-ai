@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { spawn } from 'child_process';
+import { writeFile, unlink } from 'fs/promises';
+import path from 'path';
 
 const SYSTEM_PROMPT = `You are **TeachWise AI**, an expert Australian F-6 teaching assistant with deep knowledge of:
 
@@ -55,76 +58,151 @@ Teachers come to you to BUILD A UNIT PLAN through conversation. Guide them throu
 
 Start every conversation ready to help them build something great.`;
 
+interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+interface TeacherPrefs {
+  name?: string;
+  yearLevel?: string;
+  subject?: string;
+  state?: string;
+}
+
+function buildMmxMessages(
+  messages: Message[],
+  teacherPrefs: TeacherPrefs,
+  systemPrompt: string
+): string[] {
+  const args: string[] = [];
+
+  // Add system prompt
+  args.push(`system: ${systemPrompt}`);
+
+  // Add teacher context
+  let prefsLine = 'system: Teacher context: ';
+  if (teacherPrefs.yearLevel) prefsLine += `Year level: ${teacherPrefs.yearLevel}. `;
+  if (teacherPrefs.subject) prefsLine += `Subject: ${teacherPrefs.subject}. `;
+  if (teacherPrefs.state) prefsLine += `State: ${teacherPrefs.state}. `;
+  args.push(prefsLine);
+
+  // Add conversation history (skip last message - that's the new input)
+  for (let i = 0; i < messages.length - 1; i++) {
+    const m = messages[i];
+    const role = m.role === 'user' ? 'user' : 'assistant';
+    args.push(`${role}: ${m.content}`);
+  }
+
+  // Add the new message
+  const lastMsg = messages[messages.length - 1];
+  if (lastMsg) {
+    args.push(`user: ${lastMsg.content}`);
+  }
+
+  return args;
+}
+
+function parseMmxOutput(stdout: string): string {
+  try {
+    const data = JSON.parse(stdout);
+    // Find text content in the response
+    const contents = data.content || [];
+    for (const item of contents) {
+      if (item.type === 'text' && item.text) {
+        return item.text;
+      }
+    }
+    // Fallback: if no text type found, try to extract any text
+    const textMatch = stdout.match(/"text"\s*:\s*"([^"]+)"/);
+    if (textMatch) {
+      return textMatch[1];
+    }
+    return "I couldn't generate a response. Please try again.";
+  } catch {
+    // If JSON parsing fails, return raw stdout
+    if (stdout.trim()) {
+      return stdout.trim();
+    }
+    return "Something went wrong. Please try again.";
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { messages, teacherPrefs, customSystemPrompt } = await req.json();
-    
+
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
     }
-    
-    const lastMessage = messages[messages.length - 1]?.content || '';
-    
-    // Build context from conversation history
-    let context = '';
-    if (messages.length > 1) {
-      const history = messages.slice(0, -1).map((m: any) => 
-        `${m.role === 'user' ? 'Teacher' : 'TeachWise'}: ${m.content}`
-      ).join('\n\n');
-      context = `**Previous conversation:**\n${history}\n\n`;
-    }
 
-    // Add teacher preferences if available
-    let prefsContext = '';
-    if (teacherPrefs) {
-      prefsContext = `**Teacher's context:** `;
-      if (teacherPrefs.yearLevel) prefsContext += `Year level: ${teacherPrefs.yearLevel}. `;
-      if (teacherPrefs.subject) prefsContext += `Subject: ${teacherPrefs.subject}. `;
-      if (teacherPrefs.state) prefsContext += `State: ${teacherPrefs.state}. `;
-      prefsContext += `\n\n`;
-    }
-
-    // Use custom system prompt if provided, otherwise use default
     const activeSystemPrompt = customSystemPrompt || SYSTEM_PROMPT;
-    const prompt = `${prefsContext}${context}\n**Current message from teacher:**\n${lastMessage}`;
+    const prefs: TeacherPrefs = teacherPrefs || {};
 
-    // Call MiniMax API
-    const response = await fetch('https://api.minimaxi.chat/v1/text/chatcompletion_v2', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.MINIMAX_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'MiniMax-Text-01',
-        messages: [
-          { role: 'system', content: activeSystemPrompt },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 4000,
-      }),
+    // Build mmx command args
+    const mmxArgs = buildMmxMessages(messages, prefs, activeSystemPrompt);
+
+    // Build the mmx command
+    const mmxCommand = ['text', 'chat', '--output', 'json', '--max-tokens', '4000', '--temperature', '0.7'];
+
+    // Add each message as a --message flag
+    for (const arg of mmxArgs) {
+      mmxCommand.push('--message', arg);
+    }
+
+    // Execute mmx via child_process
+    const mmxPath = '/home/dusk/.npm-global/bin/mmx';
+    
+    return new Promise<NextResponse>((resolve) => {
+      const proc = spawn(mmxPath, mmxCommand, {
+        timeout: 60000,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      proc.stdout?.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr?.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      proc.on('close', (code) => {
+        if (code !== 0) {
+          console.error('mmx error:', stderr || `exit code ${code}`);
+          resolve(NextResponse.json({ 
+            response: "I'm having trouble connecting to my AI right now. Could you try again in a moment?" 
+          }));
+          return;
+        }
+
+        const response = parseMmxOutput(stdout);
+        resolve(NextResponse.json({ response }));
+      });
+
+      proc.on('error', (err) => {
+        console.error('mmx spawn error:', err);
+        resolve(NextResponse.json({ 
+          response: "Something went wrong on my end. Please try again!" 
+        }));
+      });
+
+      // Timeout after 60 seconds
+      setTimeout(() => {
+        proc.kill();
+        resolve(NextResponse.json({ 
+          response: "Request timed out. Please try again." 
+        }));
+      }, 60000);
     });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('MiniMax API error:', error);
-      
-      // Fallback response
-      return NextResponse.json({ 
-        response: "I'm having trouble connecting to my AI right now. Could you try again in a moment? In the meantime, feel free to tell me more about what you're planning — I love hearing about classroom ideas." 
-      });
-    }
-
-    const data = await response.json();
-    const aiResponse = data.choices?.[0]?.message?.content || 
-      "I'm here and ready to help you plan! What year level and subject are you working with?";
-
-    return NextResponse.json({ response: aiResponse });
   } catch (error) {
     console.error('Chat error:', error);
     return NextResponse.json({ 
-      response: "Something went wrong on my end. Please try again, and I'll be here to help with your teaching planning!" 
+      response: "Something went wrong on my end. Please try again!" 
     });
   }
 }
