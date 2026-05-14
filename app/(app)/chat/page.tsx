@@ -877,9 +877,9 @@ export default function ChatPage() {
       <AnimatePresence>
         {planPanelOpen && activePlan && (
           <motion.div
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 'auto', opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
+            initial={{ flexBasis: 0, opacity: 0 }}
+            animate={{ flexBasis: '100%', opacity: 1 }}
+            exit={{ flexBasis: 0, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             className="flex-1 overflow-hidden border-l rounded-xl mx-1"
             style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
