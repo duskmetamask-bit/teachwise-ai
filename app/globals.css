@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0A0D14;
-  --color-surface: #13161F;
-  --color-surface-raised: #1A1D27;
+  --color-bg: #0e0e14;
+  --color-surface: #16162a;
+  --color-surface-raised: #1e1e38;
   --color-border: #252836;
-  --color-border-subtle: #1E2130;
-  --color-text: #F1F5F9;
-  --color-text-secondary: #94A3B8;
-  --color-text-muted: #64748B;
-  --color-sidebar: #0A0D14;
-  --color-sidebar-hover: #13161F;
-  --color-accent: #10B981;
-  --color-accent-hover: #059669;
-  --color-accent-dim: rgba(16, 185, 129, 0.1);
+  --color-border-subtle: #1e2130;
+  --color-text: #f0f0f5;
+  --color-text-secondary: #9090a8;
+  --color-text-muted: #606078;
+  --color-sidebar: #12122a;
+  --color-sidebar-hover: #1e1e38;
+  --color-accent: #8b2df5;
+  --color-accent-hover: #7c25e0;
+  --color-accent-dim: rgba(139, 45, 245, 0.15);
   --color-danger: #EF4444;
   --color-warning: #F59E0B;
-  --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -36,7 +36,7 @@ html, body {
 ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a3d4a; }
 
-::selection { background: rgba(16, 185, 129, 0.2); color: #10B981; }
+::selection { background: rgba(139, 45, 245, 0.25); color: #c084fc; }
 
 :focus-visible {
   outline: 2px solid var(--color-accent);
@@ -49,7 +49,7 @@ input, textarea, select {
 
 select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748B' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23606078' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 36px;
@@ -58,7 +58,7 @@ select {
 input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--color-accent) !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  box-shadow: 0 0 0 3px rgba(139, 45, 245, 0.15);
 }
 
 @keyframes fadeIn {
@@ -69,8 +69,8 @@ input:focus, textarea:focus, select:focus {
 .animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 45, 245, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(139, 45, 245, 0); }
 }
 
 .animate-pulse-glow { animation: pulse-glow 1.5s ease-in-out infinite; }

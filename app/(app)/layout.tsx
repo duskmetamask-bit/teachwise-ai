@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, MessageSquare, ClipboardList, Library, Calendar, CheckSquare, User, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, ClipboardList, Library, Calendar, CheckSquare, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const navItems = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -36,15 +36,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           className="flex items-center gap-3 px-4 py-5"
           style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
         >
+          {/* Owl logo SVG */}
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: 'var(--color-accent)' }}
+            style={{ background: 'linear-gradient(135deg, #8b2df5 0%, #6366f1 100%)' }}
           >
-            <Zap className="w-5 h-5 text-white" />
+            <svg width="22" height="22" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="60" cy="72" rx="30" ry="32" fill="white" opacity="0.9"/>
+              <ellipse cx="60" cy="78" rx="18" ry="20" fill="white"/>
+              <circle cx="46" cy="55" r="14" fill="white"/>
+              <circle cx="74" cy="55" r="14" fill="white"/>
+              <circle cx="47" cy="55" r="7" fill="#1e1e38"/>
+              <circle cx="75" cy="55" r="7" fill="#1e1e38"/>
+              <circle cx="49" cy="52" r="3" fill="white"/>
+              <circle cx="77" cy="52" r="3" fill="white"/>
+              <path d="M56 70 L60 76 L64 70" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1" strokeLinejoin="round"/>
+              <ellipse cx="44" cy="48" rx="5" ry="7" fill="#8b2df5" opacity="0.6"/>
+              <ellipse cx="76" cy="48" rx="5" ry="7" fill="#8b2df5" opacity="0.6"/>
+            </svg>
           </div>
           {!collapsed && (
             <div className="animate-fade-in overflow-hidden">
-              <div className="text-base font-bold text-white">TeachWise</div>
+              <div className="text-base font-bold text-white" style={{ letterSpacing: '-0.01em' }}>TeachWise</div>
               <div className="text-xs" style={{ color: 'var(--color-accent)' }}>AI Assistant</div>
             </div>
           )}
@@ -74,23 +87,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Pro Badge + Collapse Toggle */}
+        {/* Collapse Toggle */}
         <div
           className="p-4"
           style={{ borderTop: '1px solid var(--color-border-subtle)' }}
         >
-          {!collapsed && (
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-xl mb-3 text-xs font-medium"
-              style={{
-                backgroundColor: 'var(--color-accent-dim)',
-                color: 'var(--color-accent)',
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-pulse" />
-              Pro Plan
-            </div>
-          )}
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="w-full flex items-center justify-center py-2.5 rounded-xl text-sm transition-colors"
@@ -124,7 +125,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 color: 'var(--color-accent)',
               }}
             >
-              <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-pulse" />
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }} />
               Pro Plan
             </div>
             <div

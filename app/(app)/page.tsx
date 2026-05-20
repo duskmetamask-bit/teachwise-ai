@@ -10,35 +10,35 @@ const tools = [
     href: '/planner',
     desc: 'Generate AC9-aligned lesson plans',
     icon: Calendar,
-    color: '#10B981',
+    color: '#8b2df5',
   },
   {
     label: 'Rubrics',
     href: '/rubrics',
     desc: 'Build assessment criteria fast',
     icon: ClipboardList,
-    color: '#8B5CF6',
+    color: '#a78bfa',
   },
   {
     label: 'Unit Library',
     href: '/units',
     desc: 'Browse and manage teaching units',
     icon: Library,
-    color: '#3B82F6',
+    color: '#6366f1',
   },
   {
     label: 'Auto-Marking',
     href: '/automark',
     desc: 'Upload work, get instant feedback',
     icon: CheckSquare,
-    color: '#F59E0B',
+    color: '#f59e0b',
   },
   {
     label: 'AI Chat',
     href: '/chat',
     desc: 'Ask anything about your lesson',
     icon: MessageSquare,
-    color: '#10B981',
+    color: '#8b2df5',
   },
 ];
 
@@ -135,19 +135,19 @@ export default function DashboardPage() {
                 subject: 'Mathematics',
                 topic: 'Fractions & Decimals',
                 year: 'Year 5',
-                color: '#10B981',
+                color: '#8b2df5',
               },
               {
                 subject: 'English',
                 topic: 'Persuasive Writing',
                 year: 'Year 6',
-                color: '#8B5CF6',
+                color: '#a78bfa',
               },
               {
                 subject: 'Science',
                 topic: "Earth's Living History",
                 year: 'Year 4',
-                color: '#3B82F6',
+                color: '#6366f1',
               },
             ].map((unit) => (
               <div
@@ -246,10 +246,10 @@ export default function DashboardPage() {
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: 'Lessons planned', value: '12', sub: 'this term', color: '#10B981' },
-          { label: 'Rubrics built', value: '8', sub: 'active', color: '#8B5CF6' },
-          { label: 'Units in library', value: '6', sub: 'saved', color: '#3B82F6' },
-          { label: 'Auto-marks done', value: '24', sub: 'all time', color: '#F59E0B' },
+          { label: 'Lessons planned', value: '12', sub: 'this term', color: '#8b2df5' },
+          { label: 'Rubrics built', value: '8', sub: 'active', color: '#a78bfa' },
+          { label: 'Units in library', value: '6', sub: 'saved', color: '#6366f1' },
+          { label: 'Auto-marks done', value: '24', sub: 'all time', color: '#f59e0b' },
         ].map((stat) => (
           <div
             key={stat.label}
