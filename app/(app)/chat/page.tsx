@@ -200,9 +200,9 @@ function getSectionColor(type: PlanSection['type']): string {
   const colors: Record<string, string> = {
     overview: '#6366F1',
     ac9: '#8B5CF6',
-    walt: '#10B981',
-    tib: '#10B981',
-    wilf: '#10B981',
+    walt: '#8b2df5',
+    tib: '#a78bfa',
+    wilf: '#c084fc',
     lesson: '#F59E0B',
     assessment: '#EF4444',
     differentiation: '#F97316',

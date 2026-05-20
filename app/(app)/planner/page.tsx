@@ -19,8 +19,8 @@ import {
 
 // ─── Block Types ────────────────────────────────────────────────
 const BLOCK_TYPES = [
-  { type: 'learning_intention', label: 'Learning Intention', icon: Target, color: '#10B981' },
-  { type: 'success_criteria', label: 'Success Criteria', icon: BookOpen, color: '#10B981' },
+  { type: 'learning_intention', label: 'Learning Intention', icon: Target, color: '#8b2df5' },
+  { type: 'success_criteria', label: 'Success Criteria', icon: BookOpen, color: '#a78bfa' },
   { type: 'hook', label: 'Hook', icon: Lightbulb, color: '#F59E0B' },
   { type: 'explicit_teaching', label: 'Explicit Teaching', icon: BookOpen, color: '#6366F1' },
   { type: 'guided_practice', label: 'Guided Practice', icon: BookOpen, color: '#8B5CF6' },
