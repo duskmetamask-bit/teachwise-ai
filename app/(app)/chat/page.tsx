@@ -3,7 +3,27 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Message, TeacherPrefs } from '@/app/lib/types';
-import { Send, Mic, MicOff, Settings, Trash2, Sparkles, X, FileText, Download, ChevronRight } from 'lucide-react';
+import {
+  Bot,
+  BookMarked,
+  CheckCircle2,
+  ChevronRight,
+  ClipboardCheck,
+  Download,
+  FileText,
+  GraduationCap,
+  Mic,
+  MicOff,
+  PenLine,
+  Send,
+  Settings,
+  Sparkles,
+  Target,
+  Trash2,
+  UserRound,
+  Wand2,
+  X,
+} from 'lucide-react';
 
 const STORAGE_KEY = 'teachwise_prefs';
 const HISTORY_KEY = 'teachwise_chat_history';
@@ -198,18 +218,33 @@ function parsePlanFromMarkdown(markdown: string, yearLevel = '', subject = '', t
 
 function getSectionColor(type: PlanSection['type']): string {
   const colors: Record<string, string> = {
-    overview: '#6366F1',
-    ac9: '#8B5CF6',
-    walt: '#8b2df5',
-    tib: '#a78bfa',
-    wilf: '#c084fc',
-    lesson: '#F59E0B',
-    assessment: '#EF4444',
-    differentiation: '#F97316',
-    resources: '#64748B',
-    reflection: '#14B8A6',
+    overview: '#38bdf8',
+    ac9: '#818cf8',
+    walt: '#14b8a6',
+    tib: '#f59e0b',
+    wilf: '#a78bfa',
+    lesson: '#f59e0b',
+    assessment: '#fb7185',
+    differentiation: '#f97316',
+    resources: '#94a3b8',
+    reflection: '#14b8a6',
   };
-  return colors[type] || '#6366F1';
+  return colors[type] || '#14b8a6';
+}
+
+function getSectionIcon(type: PlanSection['type']) {
+  if (type === 'ac9') return GraduationCap;
+  if (type === 'lesson') return BookMarked;
+  if (type === 'assessment') return ClipboardCheck;
+  if (type === 'walt' || type === 'wilf') return Target;
+  if (type === 'reflection') return CheckCircle2;
+  return FileText;
+}
+
+function renderInlineMarkdown(text: string) {
+  return text.split(/\*\*(.*?)\*\*/g).map((part, index) =>
+    index % 2 === 1 ? <strong key={index}>{part}</strong> : part
+  );
 }
 
 // ─── Plan Editor Panel ───────────────────────────────────────────
@@ -321,115 +356,122 @@ ${plan.sections.map(s => `
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4" style={{ color: 'var(--color-accent)' }} />
-          <h3 className="text-sm font-semibold text-white">Unit Plan</h3>
+    <div className="flex h-full flex-col">
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--color-accent)' }}>
+            <FileText className="h-3.5 w-3.5" />
+            Live Unit Draft
+          </div>
+          <h3 className="truncate text-lg font-bold text-white">Generated plan</h3>
+          <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+            Edit, export, or keep refining with the chat.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={handleExportDOCX}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-all"
-            style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold transition-all hover:bg-white/10"
+            style={{ color: 'var(--color-text-secondary)' }}
             title="Export DOCX"
           >
-            <span className="font-medium">DOCX</span>
+            DOCX
           </button>
           <button
             onClick={handleExportPPTX}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-all"
-            style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold transition-all hover:bg-white/10"
+            style={{ color: 'var(--color-text-secondary)' }}
             title="Export PPTX"
           >
-            <span className="font-medium">PPTX</span>
+            PPTX
           </button>
           <button
             onClick={handleExportPDF}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-all"
-            style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
+            className="rounded-lg border border-white/10 bg-white/[0.04] p-2 transition-all hover:bg-white/10"
+            style={{ color: 'var(--color-text-secondary)' }}
             title="Print / PDF"
           >
-            <Download className="w-3 h-3" />
+            <Download className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg transition-all"
-            style={{ color: 'var(--color-text-muted)' }}
+            className="rounded-lg border border-white/10 bg-white/[0.04] p-2 transition-all hover:bg-white/10"
+            style={{ color: 'var(--color-text-secondary)' }}
             title="Close panel"
           >
-            <X className="w-4 h-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Plan title */}
-      <div className="mb-4 px-3 py-2 rounded-lg" style={{ backgroundColor: 'var(--color-accent)', opacity: 0.15, border: '1px solid var(--color-accent)' }}>
-        <p className="text-xs font-medium" style={{ color: 'var(--color-accent)' }}>{plan.title}</p>
+      <div className="mb-4 rounded-2xl border border-white/10 bg-gradient-to-br from-teal-400/15 via-sky-400/10 to-amber-400/10 p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--color-text-muted)' }}>Plan title</p>
+        <p className="mt-1 text-sm font-semibold leading-6 text-white">{plan.title}</p>
       </div>
 
-      {/* Sections */}
-      <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+      <div className="flex-1 space-y-3 overflow-y-auto pr-1">
         {plan.sections.map((section) => (
-          <div
-            key={section.id}
-            className="rounded-xl border overflow-hidden"
-            style={{ borderColor: 'var(--color-border)' }}
-          >
-            {/* Section header */}
+          <div key={section.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] shadow-[0_18px_50px_rgba(2,8,23,0.22)]">
             <div
-              className="flex items-center justify-between px-3 py-2"
-              style={{ backgroundColor: `${getSectionColor(section.type)}15`, borderBottom: `1px solid ${getSectionColor(section.type)}30` }}
+              className="flex items-center justify-between gap-3 px-4 py-3"
+              style={{ backgroundColor: `${getSectionColor(section.type)}18`, borderBottom: `1px solid ${getSectionColor(section.type)}2f` }}
             >
-              <span className="text-xs font-medium" style={{ color: getSectionColor(section.type) }}>
-                {section.label}
-              </span>
+              <div className="flex min-w-0 items-center gap-2">
+                {(() => {
+                  const SectionIcon = getSectionIcon(section.type);
+                  return <SectionIcon className="h-4 w-4 shrink-0" style={{ color: getSectionColor(section.type) }} />;
+                })()}
+                <span className="truncate text-xs font-bold uppercase tracking-[0.12em]" style={{ color: getSectionColor(section.type) }}>
+                  {section.label}
+                </span>
+              </div>
               <button
                 onClick={() => startEdit(section)}
-                className="text-xs px-2 py-0.5 rounded transition-all"
-                style={{ color: 'var(--color-text-muted)', backgroundColor: 'transparent' }}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold transition-all hover:bg-white/10"
+                style={{ color: 'var(--color-text-secondary)' }}
               >
+                <PenLine className="h-3 w-3" />
                 Edit
               </button>
             </div>
 
-            {/* Section content */}
-            <div className="px-3 py-2">
+            <div className="px-4 py-4">
               {editingId === section.id ? (
                 <div className="space-y-2">
                   <textarea
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
                     rows={Math.max(4, editValue.split('\n').length + 1)}
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
-                    style={{ backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}
+                    className="w-full resize-none rounded-xl border border-white/10 bg-slate-950/40 px-3 py-3 text-sm leading-6 outline-none"
+                    style={{ color: 'var(--color-text-secondary)' }}
                     autoFocus
                   />
                   <div className="flex gap-2">
                     <button
                       onClick={() => saveEdit(section.id)}
-                      className="px-3 py-1 rounded-lg text-xs font-medium"
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold"
                       style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}
                     >
                       Save
                     </button>
                     <button
                       onClick={() => setEditingId(null)}
-                      className="px-3 py-1 rounded-lg text-xs"
-                      style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
+                      className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold"
+                      style={{ color: 'var(--color-text-muted)' }}
                     >
                       Cancel
                     </button>
                   </div>
                 </div>
               ) : (
-                <p
-                  className="text-sm whitespace-pre-wrap"
+                <div
+                  className="chat-output text-sm leading-7"
                   style={{ color: section.content ? 'var(--color-text-secondary)' : 'var(--color-text-muted)', fontStyle: section.content ? 'normal' : 'italic' }}
                 >
-                  {section.content || 'No content yet. Click Edit to add content.'}
-                </p>
+                  {(section.content || 'No content yet. Click Edit to add content.').split('\n').map((line, index) => (
+                    <p key={index}>{renderInlineMarkdown(line)}</p>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -445,6 +487,19 @@ const welcomeMessage = (): Message => ({
   content: defaultWelcome,
   timestamp: new Date(),
 });
+
+const promptSuggestions = [
+  'Year 5 Mathematics unit on fractions and decimals',
+  'Year 3 English persuasive writing lesson sequence',
+  'Build a Science rubric for habitats and adaptations',
+];
+
+const stageLabels = {
+  start: 'Context',
+  topic: 'Topic',
+  scope: 'Scope',
+  building: 'Draft',
+} as const;
 
 function loadPrefs(): TeacherPrefs {
   if (typeof window === 'undefined') return { name: '', yearLevel: '', subject: '', state: 'NSW' };
@@ -625,32 +680,45 @@ export default function ChatPage() {
     setPlanPanelOpen(false);
   };
 
-  const renderMessage = (content: string) => {
+  const renderMessage = (content: string, role: Message['role']) => {
     return content.split('\n').map((line, i) => {
-      if (line.startsWith('### ')) return <h4 key={i} className="text-sm font-semibold mt-3 mb-1" style={{ color: 'var(--color-accent)' }}>{line.replace('### ', '')}</h4>;
-      if (line.startsWith('## ')) return <h3 key={i} className="text-base font-semibold mt-4 mb-2" style={{ color: 'var(--color-accent)' }}>{line.replace('## ', '')}</h3>;
-      if (line.startsWith('# ')) return <h2 key={i} className="text-lg font-bold text-white mt-4 mb-2">{line.replace('# ', '')}</h2>;
-      if (line.startsWith('**') && line.endsWith('**') && !line.includes('**', 2)) return <p key={i} className="font-semibold text-white mt-2">{line.replace(/\*\*/g, '')}</p>;
-      if (line.startsWith('- ') || line.startsWith('* ')) {
-        const text = line.replace(/^[-*]\s*/, '');
+      const normalizedLine = line.replace(/^•\s*/, '- ');
+      if (normalizedLine.startsWith('### ')) {
+        return <h4 key={i} className="mt-5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-bold text-white">{normalizedLine.replace('### ', '')}</h4>;
+      }
+      if (normalizedLine.startsWith('## ')) {
+        return <h3 key={i} className="mt-5 text-base font-bold" style={{ color: role === 'user' ? 'white' : 'var(--color-accent)' }}>{normalizedLine.replace('## ', '')}</h3>;
+      }
+      if (normalizedLine.startsWith('# ')) {
+        return <h2 key={i} className="mt-5 text-lg font-bold text-white">{normalizedLine.replace('# ', '')}</h2>;
+      }
+      if (normalizedLine.startsWith('**') && normalizedLine.endsWith('**') && !normalizedLine.includes('**', 2)) {
+        return <p key={i} className="mt-3 text-sm font-bold text-white">{normalizedLine.replace(/\*\*/g, '')}</p>;
+      }
+      if (normalizedLine.startsWith('- ') || normalizedLine.startsWith('* ')) {
+        const text = normalizedLine.replace(/^[-*]\s*/, '');
         return (
-          <li key={i} className="ml-3 text-sm flex gap-2" style={{ color: 'var(--color-text-secondary)' }}>
-            <span style={{ color: 'var(--color-accent)' }}>•</span><span>{text}</span>
+          <li key={i} className="my-2 flex gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-sm leading-6" style={{ color: role === 'user' ? 'rgba(255,255,255,0.9)' : 'var(--color-text-secondary)' }}>
+            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: role === 'user' ? 'white' : 'var(--color-accent)' }} />
+            <span>{renderInlineMarkdown(text)}</span>
           </li>
         );
       }
-      if (line.match(/^\d+\.\s/)) {
-        const num = line.match(/^(\d+)\./)?.[1] || '1';
-        const text = line.replace(/^\d+\.\s*/, '');
-        return <li key={i} className="ml-3 text-sm flex gap-2" style={{ color: 'var(--color-text-secondary)' }}><span style={{ color: 'var(--color-accent)' }} className="font-semibold min-w-[1.5rem]">{num}.</span><span>{text}</span></li>;
+      if (normalizedLine.match(/^\d+\.\s/)) {
+        const num = normalizedLine.match(/^(\d+)\./)?.[1] || '1';
+        const text = normalizedLine.replace(/^\d+\.\s*/, '');
+        return (
+          <li key={i} className="my-2 flex gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-sm leading-6" style={{ color: role === 'user' ? 'rgba(255,255,255,0.9)' : 'var(--color-text-secondary)' }}>
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-full text-xs font-bold" style={{ backgroundColor: role === 'user' ? 'rgba(255,255,255,0.18)' : 'var(--color-accent-dim)', color: role === 'user' ? 'white' : 'var(--color-accent)' }}>{num}</span>
+            <span>{renderInlineMarkdown(text)}</span>
+          </li>
+        );
       }
-      if (line.startsWith('```')) return null;
-      if (line.trim() === '') return <br key={i} />;
+      if (normalizedLine.startsWith('```')) return null;
+      if (normalizedLine.trim() === '') return <div key={i} className="h-2" />;
       return (
-        <p key={i} className="text-sm my-1" style={{ color: 'var(--color-text-secondary)' }}>
-          {line.split(/\*\*(.*?)\*\*/g).map((part, j) =>
-            j % 2 === 1 ? <strong key={j} className="text-white">{part}</strong> : part
-          )}
+        <p key={i} className="my-2 text-sm leading-7" style={{ color: role === 'user' ? 'rgba(255,255,255,0.92)' : 'var(--color-text-secondary)' }}>
+          {renderInlineMarkdown(normalizedLine)}
         </p>
       );
     });
@@ -661,47 +729,48 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-full animate-fade-in" ref={containerRef}>
+    <div className="chat-workspace flex h-[calc(100vh-9rem)] min-h-[640px] animate-fade-in gap-3" ref={containerRef}>
       {/* ── LEFT PANE: Chat ── */}
       <div
-        className="flex flex-col h-full flex-shrink-0 overflow-hidden"
+        className="flex h-full min-h-0 flex-shrink-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950/30 p-4 shadow-[0_28px_90px_rgba(2,8,23,0.32)]"
         style={{
           width: planPanelOpen ? `${leftPaneWidth}%` : '100%',
           transition: dividerDragging ? 'none' : 'width 0.2s ease',
         }}
       >
-        {/* Chat Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />
+        <div className="mb-4 flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-gradient-to-br from-teal-400/14 via-sky-400/8 to-amber-400/10 p-4">
+          <div className="min-w-0">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-teal-300/20 bg-teal-300/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--color-accent)' }}>
+              <Sparkles className="h-3.5 w-3.5" />
+              AC9 Co-planner
+            </div>
+            <h2 className="flex items-center gap-2 text-2xl font-bold leading-tight text-white">
               Unit Planning Assistant
             </h2>
-            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+            <p className="mt-2 text-sm leading-6" style={{ color: 'var(--color-text-secondary)' }}>
               {prefs.yearLevel && prefs.subject ? `${prefs.yearLevel} ${prefs.subject}` : 'Start a conversation'}
               {prefs.name && ` — ${prefs.name}`}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex shrink-0 gap-2">
             <button
               onClick={() => setShowPrefs(!showPrefs)}
-              className="p-2 rounded-lg text-sm transition-all flex items-center gap-1"
-              style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
+              className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.06] p-2.5 text-sm transition-all hover:bg-white/10"
+              style={{ color: 'var(--color-text-secondary)' }}
               title="Teacher preferences"
             >
-              <Settings className="w-4 h-4" />
+              <Settings className="h-4 w-4" />
             </button>
             <button
               onClick={clearHistory}
-              className="px-3 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1"
-              style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
+              className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold transition-all hover:bg-white/10"
+              style={{ color: 'var(--color-text-secondary)' }}
             >
-              <Trash2 className="w-3 h-3" /> Clear
+              <Trash2 className="h-3.5 w-3.5" /> Clear
             </button>
           </div>
         </div>
 
-        {/* Teacher Preferences */}
         <AnimatePresence>
           {showPrefs && (
             <motion.div
@@ -711,28 +780,25 @@ export default function ChatPage() {
               exit={{ opacity: 0 }}
               className="mb-4 overflow-hidden"
             >
-              <div className="p-4 rounded-xl border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-                <h3 className="text-sm font-semibold text-white mb-3">Your Teaching Context</h3>
-                <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-[0_18px_50px_rgba(2,8,23,0.2)]">
+                <h3 className="mb-3 text-sm font-bold text-white">Your Teaching Context</h3>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div>
                     <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Your Name</label>
                     <input type="text" value={prefs.name} onChange={(e) => setPrefs({ ...prefs, name: e.target.value })}
-                      placeholder="Optional" className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                      style={{ backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'white' }} />
+                      placeholder="Optional" className="w-full rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2.5 text-sm text-white outline-none" />
                   </div>
                   <div>
                     <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-muted)' }}>State</label>
                     <select value={prefs.state} onChange={(e) => setPrefs({ ...prefs, state: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                      style={{ backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'white' }}>
+                      className="w-full rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2.5 text-sm text-white outline-none">
                       {['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'].map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Year Level</label>
                     <select value={prefs.yearLevel} onChange={(e) => setPrefs({ ...prefs, yearLevel: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                      style={{ backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'white' }}>
+                      className="w-full rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2.5 text-sm text-white outline-none">
                       <option value="">Select year level</option>
                       {['F', '1', '2', '3', '4', '5', '6'].map(y => <option key={y} value={y}>Year {y}</option>)}
                     </select>
@@ -740,14 +806,13 @@ export default function ChatPage() {
                   <div>
                     <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Subject</label>
                     <select value={prefs.subject} onChange={(e) => setPrefs({ ...prefs, subject: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                      style={{ backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'white' }}>
+                      className="w-full rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2.5 text-sm text-white outline-none">
                       <option value="">Select subject</option>
                       {['English', 'Mathematics', 'Science', 'HASS', 'The Arts', 'Health & PE', 'Technologies'].map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                 </div>
-                <button onClick={savePrefs} className="mt-3 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                <button onClick={savePrefs} className="mt-3 rounded-xl px-4 py-2.5 text-sm font-bold transition-all"
                   style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}>
                   Save Preferences
                 </button>
@@ -756,47 +821,64 @@ export default function ChatPage() {
           )}
         </AnimatePresence>
 
-        {/* Stage Indicator */}
-        <div className="flex items-center gap-2 mb-4 text-xs">
+        <div className="mb-4 grid grid-cols-4 gap-2 text-xs">
           {(['start', 'topic', 'scope', 'building'] as const).map((stage, i) => (
-            <div key={stage} className="flex items-center gap-2">
-              <span className="px-2 py-1 rounded-full transition-all"
-                style={conversationStage === stage ? { backgroundColor: 'var(--color-accent-dim)', color: 'var(--color-accent)' } : { backgroundColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
-                {stage.charAt(0).toUpperCase() + stage.slice(1)}
-              </span>
-              {i < 3 && <div className="flex-1 h-px" style={{ backgroundColor: 'var(--color-border)' }} />}
+            <div
+              key={stage}
+              className="rounded-2xl border px-3 py-2 transition-all"
+              style={conversationStage === stage ? { backgroundColor: 'var(--color-accent-dim)', borderColor: 'rgba(20,184,166,0.38)', color: 'var(--color-accent)' } : { backgroundColor: 'rgba(255,255,255,0.035)', borderColor: 'rgba(255,255,255,0.08)', color: 'var(--color-text-muted)' }}
+            >
+              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em]">0{i + 1}</div>
+              <div className="font-semibold">{stageLabels[stage]}</div>
             </div>
           ))}
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto rounded-xl border p-4 mb-4 space-y-4"
-          style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="chat-thread mb-4 flex-1 space-y-5 overflow-y-auto rounded-3xl border border-white/10 bg-slate-950/35 p-4">
           {messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className="max-w-[85%] rounded-2xl px-5 py-4"
+            <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {msg.role === 'assistant' && (
+                <div className="mt-1 hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-teal-300/20 bg-teal-300/12 sm:flex" style={{ color: 'var(--color-accent)' }}>
+                  <Bot className="h-4 w-4" />
+                </div>
+              )}
+              <div
+                className={`chat-bubble max-w-[100%] rounded-3xl px-5 py-4 sm:max-w-[88%] ${msg.role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'}`}
                 style={{
-                  backgroundColor: msg.role === 'user' ? 'var(--color-accent)' : 'var(--color-surface-raised)',
-                  border: msg.role === 'user' ? 'none' : '1px solid var(--color-border)',
-                  borderBottomLeftRadius: msg.role === 'assistant' ? '4px' : '2rem',
-                }}>
-                <div className="text-xs font-medium mb-2"
-                  style={{ color: msg.role === 'user' ? 'rgba(255,255,255,0.7)' : 'var(--color-accent)' }}>
-                  {msg.role === 'user' ? (prefs.name || 'You') : '◈ TeachWise AI'}
+                  background: msg.role === 'user'
+                    ? 'linear-gradient(135deg, #14b8a6, #0f766e)'
+                    : 'linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.035))',
+                  border: msg.role === 'user' ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.10)',
+                  boxShadow: '0 18px 50px rgba(2,8,23,0.22)',
+                }}
+              >
+                <div className="mb-3 flex items-center justify-between gap-4">
+                  <div className="inline-flex items-center gap-2 text-xs font-bold" style={{ color: msg.role === 'user' ? 'rgba(255,255,255,0.78)' : 'var(--color-accent)' }}>
+                    {msg.role === 'user' ? <UserRound className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    {msg.role === 'user' ? (prefs.name || 'You') : 'TeachWise AI'}
+                  </div>
+                  <div className="text-[11px]" style={{ color: msg.role === 'user' ? 'rgba(255,255,255,0.65)' : 'var(--color-text-muted)' }}>
+                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
                 </div>
-                <div className="text-sm leading-relaxed text-white">
-                  {renderMessage(msg.content)}
-                </div>
-                <div className="text-xs mt-2" style={{ color: msg.role === 'user' ? 'rgba(255,255,255,0.7)' : 'var(--color-text-muted)' }}>
-                  {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div className="chat-output text-white">
+                  {renderMessage(msg.content, msg.role)}
                 </div>
               </div>
+              {msg.role === 'user' && (
+                <div className="mt-1 hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] sm:flex" style={{ color: 'var(--color-text-secondary)' }}>
+                  <UserRound className="h-4 w-4" />
+                </div>
+              )}
             </div>
           ))}
 
           {isTyping && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl px-5 py-4" style={{ backgroundColor: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', borderBottomLeftRadius: '4px' }}>
+            <div className="flex justify-start gap-3">
+              <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-teal-300/20 bg-teal-300/12" style={{ color: 'var(--color-accent)' }}>
+                <Bot className="h-4 w-4" />
+              </div>
+              <div className="rounded-3xl rounded-bl-md border border-white/10 bg-white/[0.05] px-5 py-4">
                 <div className="flex items-center gap-3">
                   <div className="flex gap-1">
                     <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '0ms' }} />
@@ -811,7 +893,6 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Open Plan Panel hint */}
         <AnimatePresence>
           {activePlan && !planPanelOpen && (
             <motion.div
@@ -823,8 +904,8 @@ export default function ChatPage() {
             >
               <button
                 onClick={() => setPlanPanelOpen(true)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all"
-                style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-teal-300/20 bg-teal-300/15 py-3 text-sm font-bold transition-all hover:bg-teal-300/20"
+                style={{ color: 'var(--color-accent)' }}
               >
                 <FileText className="w-4 h-4" />
                 View & Edit Unit Plan
@@ -834,16 +915,26 @@ export default function ChatPage() {
           )}
         </AnimatePresence>
 
-        {/* Tip */}
-        <p className="text-xs text-center mb-3" style={{ color: 'var(--color-text-muted)' }}>
-          Tip: Tell me your year level, subject and topic — I&apos;ll build you a full AC9-aligned unit plan
-        </p>
+        {messages.length <= 1 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {promptSuggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                onClick={() => setInput(suggestion)}
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold transition-all hover:bg-white/10"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
 
-        {/* Input */}
-        <div className="flex gap-3 items-end">
+        <div className="flex items-end gap-3 rounded-3xl border border-white/10 bg-white/[0.05] p-2 shadow-[0_18px_50px_rgba(2,8,23,0.18)]">
           <div className="flex-1 relative">
             {(voiceListening || transcript) && (
-              <div className="absolute -top-8 left-0 right-0 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs animate-pulse-glow"
+              <div className="absolute -top-9 left-2 right-2 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs animate-pulse-glow"
                 style={{ backgroundColor: 'var(--color-accent-dim)', color: 'var(--color-accent)' }}>
                 <Mic className="w-3 h-3" />{transcript || 'Listening...'}
               </div>
@@ -851,18 +942,17 @@ export default function ChatPage() {
             <textarea value={input} onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
               placeholder="Tell me what you want to teach..." rows={1}
-              className="w-full px-5 py-4 rounded-2xl border text-sm outline-none transition-all resize-none"
-              style={{ backgroundColor: 'var(--color-surface-raised)', borderColor: 'var(--color-border)', color: 'white' }} />
+              className="max-h-32 w-full resize-none rounded-2xl border border-transparent bg-transparent px-4 py-3 text-sm leading-6 text-white outline-none transition-all placeholder:text-slate-500" />
           </div>
           <button onClick={toggleVoice}
-            className={`p-4 rounded-2xl transition-all flex-shrink-0 ${voiceListening ? 'animate-pulse-glow' : ''}`}
-            style={{ backgroundColor: voiceListening ? 'var(--color-accent)' : 'var(--color-surface-raised)', border: voiceListening ? 'none' : '1px solid var(--color-border)', color: voiceListening ? 'white' : 'var(--color-text-muted)' }}
+            className={`flex-shrink-0 rounded-2xl border border-white/10 p-3.5 transition-all hover:bg-white/10 ${voiceListening ? 'animate-pulse-glow' : ''}`}
+            style={{ backgroundColor: voiceListening ? 'var(--color-accent)' : 'rgba(255,255,255,0.04)', color: voiceListening ? 'white' : 'var(--color-text-muted)' }}
             title={voiceListening ? 'Stop listening' : 'Start voice input'}>
             {voiceListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
           <button onClick={() => handleSend()} disabled={(!input.trim() && !transcript) || isTyping}
-            className="px-8 py-4 rounded-2xl text-sm font-semibold transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}>
+            className="flex items-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #14b8a6, #0f766e)', color: 'white' }}>
             <Send className="w-4 h-4" /> Send
           </button>
         </div>
@@ -875,7 +965,7 @@ export default function ChatPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="relative flex-shrink-0 cursor-col-resize group"
+            className="group relative flex-shrink-0 cursor-col-resize"
             style={{ width: 8, backgroundColor: 'transparent' }}
             onMouseDown={() => setDividerDragging(true)}
           >
@@ -897,10 +987,9 @@ export default function ChatPage() {
             animate={{ flexBasis: '100%', opacity: 1 }}
             exit={{ flexBasis: 0, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="flex-1 overflow-hidden border-l rounded-xl mx-1"
-            style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+            className="flex-1 overflow-hidden rounded-3xl border border-white/10 bg-slate-950/30 shadow-[0_28px_90px_rgba(2,8,23,0.26)]"
           >
-            <div className="h-full w-full min-w-[360px] p-4">
+            <div className="h-full w-full min-w-[360px] p-5">
               <PlanEditorPanel
                 plan={activePlan}
                 onClose={() => setPlanPanelOpen(false)}

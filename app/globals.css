@@ -122,6 +122,37 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 24px 70px rgba(2, 8, 23, 0.28);
 }
 
+.chat-thread {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(20,184,166,0.08), transparent 30%),
+    radial-gradient(circle at 90% 20%, rgba(245,158,11,0.06), transparent 28%),
+    rgba(2, 8, 23, 0.28);
+}
+
+.chat-output strong {
+  color: #ffffff;
+  font-weight: 750;
+}
+
+.chat-output p:first-child,
+.chat-output h2:first-child,
+.chat-output h3:first-child,
+.chat-output h4:first-child {
+  margin-top: 0;
+}
+
+.chat-output li {
+  list-style: none;
+}
+
+.chat-output p {
+  overflow-wrap: anywhere;
+}
+
+.chat-bubble {
+  backdrop-filter: blur(18px);
+}
+
 @media (max-width: 900px) {
   .app-layout {
     flex-direction: column;
@@ -147,6 +178,15 @@ input:focus, textarea:focus, select:focus {
 
   .app-main {
     min-height: 0;
+  }
+
+  .chat-workspace {
+    flex-direction: column;
+    min-height: 900px;
+  }
+
+  .chat-workspace > div:first-child {
+    width: 100% !important;
   }
 }
 
