@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Message, TeacherPrefs } from '@/app/lib/types';
-import { Send, Mic, MicOff, Settings, Trash2, Sparkles, X, FileText, Download, Save, ChevronRight } from 'lucide-react';
+import { Send, Mic, MicOff, Settings, Trash2, Sparkles, X, FileText, Download, ChevronRight } from 'lucide-react';
 
 const STORAGE_KEY = 'teachwise_prefs';
 const HISTORY_KEY = 'teachwise_chat_history';
@@ -439,15 +439,45 @@ ${plan.sections.map(s => `
   );
 }
 
+const welcomeMessage = (): Message => ({
+  id: 'welcome',
+  role: 'assistant',
+  content: defaultWelcome,
+  timestamp: new Date(),
+});
+
+function loadPrefs(): TeacherPrefs {
+  if (typeof window === 'undefined') return { name: '', yearLevel: '', subject: '', state: 'NSW' };
+  try {
+    const savedPrefs = localStorage.getItem(STORAGE_KEY);
+    return savedPrefs ? JSON.parse(savedPrefs) : { name: '', yearLevel: '', subject: '', state: 'NSW' };
+  } catch {
+    return { name: '', yearLevel: '', subject: '', state: 'NSW' };
+  }
+}
+
+function loadMessages(): Message[] {
+  if (typeof window === 'undefined') return [welcomeMessage()];
+  try {
+    const savedHistory = localStorage.getItem(HISTORY_KEY);
+    const parsed = savedHistory ? JSON.parse(savedHistory) : null;
+    if (!Array.isArray(parsed) || parsed.length === 0) return [welcomeMessage()];
+    return parsed.map((message: Message) => ({
+      ...message,
+      timestamp: new Date(message.timestamp),
+    }));
+  } catch {
+    return [welcomeMessage()];
+  }
+}
+
 // ─── Main Chat Page ──────────────────────────────────────────────
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 'welcome', role: 'assistant', content: defaultWelcome, timestamp: new Date() }
-  ]);
+  const [messages, setMessages] = useState<Message[]>(loadMessages);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showPrefs, setShowPrefs] = useState(false);
-  const [prefs, setPrefs] = useState<TeacherPrefs>({ name: '', yearLevel: '', subject: '', state: 'NSW' });
+  const [prefs, setPrefs] = useState<TeacherPrefs>(loadPrefs);
   const [conversationStage, setConversationStage] = useState<'start' | 'topic' | 'scope' | 'building' | 'done'>('start');
   const [voiceListening, setVoiceListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -458,22 +488,6 @@ export default function ChatPage() {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Load saved data
-  useEffect(() => {
-    const savedPrefs = localStorage.getItem(STORAGE_KEY);
-    if (savedPrefs) {
-      try { setPrefs(JSON.parse(savedPrefs)); } catch {}
-    }
-    const savedHistory = localStorage.getItem(HISTORY_KEY);
-    if (savedHistory) {
-      try {
-        const parsed = JSON.parse(savedHistory);
-        if (parsed.length > 0) setMessages(parsed);
-      } catch {}
-    }
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
 
   useEffect(() => {
     if (messages.length > 1) {
@@ -507,48 +521,12 @@ export default function ChatPage() {
     };
   }, [dividerDragging]);
 
-  const toggleVoice = useCallback(() => {
-    if (voiceListening) {
-      recognitionRef.current?.stop();
-      setVoiceListening(false);
-      return;
-    }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) { alert('Speech recognition not supported'); return; }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = 'en-AU';
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
-        else setTranscript(event.results[i][0].transcript);
-      }
-      if (finalTranscript) {
-        setInput(finalTranscript);
-        setVoiceListening(false);
-        setTranscript('');
-        handleSend(finalTranscript);
-      }
-    };
-
-    recognition.onend = () => { setVoiceListening(false); setTranscript(''); };
-    recognition.onerror = () => { setVoiceListening(false); setTranscript(''); };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-    setVoiceListening(true);
-  }, [voiceListening]);
-
   const savePrefs = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
     setShowPrefs(false);
   };
 
-  const handleSend = async (promptText?: string) => {
+  const handleSend = useCallback(async (promptText?: string) => {
     const text = promptText || input;
     if (!text.trim()) return;
 
@@ -601,10 +579,46 @@ export default function ChatPage() {
     } finally {
       setIsTyping(false);
     }
-  };
+  }, [input, messages, prefs]);
+
+  const toggleVoice = useCallback(() => {
+    if (voiceListening) {
+      recognitionRef.current?.stop();
+      setVoiceListening(false);
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) { alert('Speech recognition not supported'); return; }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-AU';
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+        else setTranscript(event.results[i][0].transcript);
+      }
+      if (finalTranscript) {
+        setInput(finalTranscript);
+        setVoiceListening(false);
+        setTranscript('');
+        handleSend(finalTranscript);
+      }
+    };
+
+    recognition.onend = () => { setVoiceListening(false); setTranscript(''); };
+    recognition.onerror = () => { setVoiceListening(false); setTranscript(''); };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setVoiceListening(true);
+  }, [handleSend, voiceListening]);
 
   const clearHistory = () => {
-    setMessages([{ id: 'welcome', role: 'assistant', content: defaultWelcome, timestamp: new Date() }]);
+    setMessages([welcomeMessage()]);
     localStorage.removeItem(HISTORY_KEY);
     setConversationStage('start');
     setActivePlan(null);
@@ -822,7 +836,7 @@ export default function ChatPage() {
 
         {/* Tip */}
         <p className="text-xs text-center mb-3" style={{ color: 'var(--color-text-muted)' }}>
-          Tip: Tell me your year level, subject and topic — I'll build you a full AC9-aligned unit plan
+          Tip: Tell me your year level, subject and topic — I&apos;ll build you a full AC9-aligned unit plan
         </p>
 
         {/* Input */}

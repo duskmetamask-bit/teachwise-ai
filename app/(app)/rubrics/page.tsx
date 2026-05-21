@@ -1,8 +1,8 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ClipboardList, Copy, Printer, Loader2, ChevronDown } from 'lucide-react';
+import { ClipboardList, Copy, Printer, Loader2 } from 'lucide-react';
 
 function LoadingSpinner() {
   return (
@@ -38,24 +38,16 @@ Return the rubric as a markdown table with this exact structure:
 
 Make each descriptor specific, observable, and tied to the AC9 achievement standards for the year level. Use student-friendly language.`;
 
-interface RubricResult {
-  criteria: string[];
-  levels: string[];
-  descriptors: string[][];
-}
-
 function RubricsContent() {
   const searchParams = useSearchParams();
-
-  useEffect(() => {
+  const [yearLevel, setYearLevel] = useState(() => {
     const year = searchParams.get('year');
+    return year ? decodeURIComponent(year).replace('Year ', '') : '';
+  });
+  const [subject, setSubject] = useState(() => {
     const subjectParam = searchParams.get('subject');
-    if (year) setYearLevel(decodeURIComponent(year).replace('Year ', ''));
-    if (subjectParam) setSubject(decodeURIComponent(subjectParam));
-  }, [searchParams]);
-
-  const [yearLevel, setYearLevel] = useState('');
-  const [subject, setSubject] = useState('');
+    return subjectParam ? decodeURIComponent(subjectParam) : '';
+  });
   const [topic, setTopic] = useState('');
   const [rubricType, setRubricType] = useState<'analytic' | 'holistic'>('analytic');
   const [levelCount, setLevelCount] = useState('4');
@@ -70,13 +62,6 @@ function RubricsContent() {
     setIsLoading(true);
     setResult('');
 
-    const levelLabels: Record<string, string[]> = {
-      '3': ['Beginning', 'Developing', 'Extending'],
-      '4': ['Beginning', 'Developing', 'Proficient', 'Extending'],
-      '5': ['Beginning', 'Developing', 'Proficient', 'Accomplished', 'Extending'],
-    };
-
-    const levels = levelLabels[levelCount];
     const levelDesc = levelCount === '3' ? '3 levels' : levelCount === '4' ? '4 levels' : '5 levels';
 
     const userPrompt = `Create a ${rubricType} rubric for ${subject} at Year ${yearLevel} level on the topic: "${topic}". Use ${levelDesc}.`;
@@ -96,7 +81,7 @@ function RubricsContent() {
 
       const data = await response.json();
       setResult(data.response || 'No response received.');
-    } catch (err) {
+    } catch {
       setResult('Error generating rubric. Please try again.');
     } finally {
       setIsLoading(false);

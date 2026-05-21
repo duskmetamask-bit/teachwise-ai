@@ -20,14 +20,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--color-bg)' }}>
+    <div className="app-layout flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--color-bg)' }}>
       {/* Sidebar */}
       <aside
-        className="flex flex-col transition-all duration-300"
+        className="app-sidebar flex flex-col transition-all duration-300"
         style={{
           width: collapsed ? 72 : 260,
           minWidth: collapsed ? 72 : 260,
-          backgroundColor: 'var(--color-sidebar)',
+          background: 'linear-gradient(180deg, rgba(10,18,36,0.98), rgba(13,24,48,0.96))',
           borderRight: '1px solid var(--color-border-subtle)',
         }}
       >
@@ -57,8 +57,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           {!collapsed && (
             <div className="animate-fade-in overflow-hidden">
-              <div className="text-base font-bold text-white" style={{ letterSpacing: '-0.01em' }}>TeachWise</div>
-              <div className="text-xs" style={{ color: 'var(--color-accent)' }}>AI Assistant</div>
+              <div className="text-base font-bold text-white">TeachWise</div>
+              <div className="text-xs" style={{ color: '#fbbf24' }}>Teacher OS</div>
             </div>
           )}
         </div>
@@ -103,12 +103,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="app-main flex-1 overflow-y-auto">
         {/* Top Bar */}
         <header
           className="flex items-center justify-between px-6 py-4"
           style={{
-            backgroundColor: 'var(--color-surface)',
+            backgroundColor: 'rgba(18, 26, 47, 0.78)',
+            backdropFilter: 'blur(18px)',
             borderBottom: '1px solid var(--color-border-subtle)',
           }}
         >

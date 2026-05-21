@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { User, Check, Loader2 } from 'lucide-react';
 
 const STORAGE_KEY = 'teachwise_class_context';
@@ -44,12 +44,8 @@ function emptyContext(): ClassContext {
 }
 
 export default function ProfilePage() {
-  const [context, setContext] = useState<ClassContext>(emptyContext);
+  const [context, setContext] = useState<ClassContext>(loadContext);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-
-  useEffect(() => {
-    setContext(loadContext());
-  }, []);
 
   const saveContext = useCallback((updated: ClassContext) => {
     setContext(updated);

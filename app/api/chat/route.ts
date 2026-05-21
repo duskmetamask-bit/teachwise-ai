@@ -79,11 +79,16 @@ function buildAnthropicMessages(
   };
 }
 
-function extractTextContent(content: any[]): string {
+type MiniMaxContentPart = {
+  type?: string;
+  text?: string;
+};
+
+function extractTextContent(content: unknown): string {
   if (!Array.isArray(content)) return String(content);
 
   const textParts: string[] = [];
-  for (const item of content) {
+  for (const item of content as MiniMaxContentPart[]) {
     if (item.type === 'text' && item.text) {
       textParts.push(item.text);
     }

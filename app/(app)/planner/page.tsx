@@ -7,8 +7,6 @@ import {
   Trash2,
   Sparkles,
   Loader2,
-  ChevronDown,
-  ChevronUp,
   Plus,
   BookOpen,
   Target,
@@ -198,12 +196,11 @@ function ShimmerBlock({ color }: { color: string }) {
 }
 
 // ─── Block Component ─────────────────────────────────────────────
-function BlockItem({ block, onUpdate, onDelete, onGenerate, isFirst }: {
+function BlockItem({ block, onUpdate, onDelete, onGenerate }: {
   block: Block;
   onUpdate: (id: string, content: string) => void;
   onDelete: (id: string) => void;
   onGenerate: (id: string, type: BlockType, buttonRect: DOMRect) => void;
-  isFirst: boolean;
 }) {
   const meta = getBlockMeta(block.type);
   const [btnRef, setBtnRef] = useState<HTMLButtonElement | null>(null);
@@ -300,8 +297,6 @@ function BlockItem({ block, onUpdate, onDelete, onGenerate, isFirst }: {
 
 // ─── Block Library Panel ─────────────────────────────────────────
 function BlockLibrary({ onAdd }: { onAdd: (type: BlockType, rect: DOMRect) => void }) {
-  const [refs, setRefs] = useState<Record<BlockType, HTMLButtonElement | null>>({} as Record<BlockType, HTMLButtonElement | null>);
-
   return (
     <div className="w-80 flex-shrink-0">
       <h3 className="text-sm font-medium text-white mb-3">Block Library</h3>
@@ -309,13 +304,8 @@ function BlockLibrary({ onAdd }: { onAdd: (type: BlockType, rect: DOMRect) => vo
         {BLOCK_TYPES.map((bt) => (
           <button
             key={bt.type}
-            ref={(el) => setRefs((prev) => ({ ...prev, [bt.type]: el }))}
-            onClick={() => {
-              const ref = refs[bt.type];
-              if (ref) {
-                const rect = ref.getBoundingClientRect();
-                onAdd(bt.type, rect);
-              }
+            onClick={(event) => {
+              onAdd(bt.type, event.currentTarget.getBoundingClientRect());
             }}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-all text-sm"
             style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}
@@ -332,12 +322,7 @@ function BlockLibrary({ onAdd }: { onAdd: (type: BlockType, rect: DOMRect) => vo
 
 // ─── Main Planner Page ───────────────────────────────────────────
 export default function PlannerPage() {
-  const [blocks, setBlocks] = useState<Block[]>([makeBlock('learning_intention')]);
-  const [generatingId, setGeneratingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setBlocks(loadBlocks());
-  }, []);
+  const [blocks, setBlocks] = useState<Block[]>(loadBlocks);
 
   const updateBlock = useCallback((id: string, content: string) => {
     setBlocks((prev) => {
@@ -355,7 +340,7 @@ export default function PlannerPage() {
     });
   }, []);
 
-  const addBlock = useCallback((type: BlockType, _rect?: DOMRect) => {
+  const addBlock = useCallback((type: BlockType) => {
     const newBlock = makeBlock(type);
     setBlocks((prev) => {
       const updated = [...prev, newBlock];
@@ -365,10 +350,10 @@ export default function PlannerPage() {
   }, []);
 
   const handleGenerate = useCallback(async (id: string, type: BlockType, buttonRect: DOMRect) => {
+    void buttonRect;
     setBlocks((prev) =>
       prev.map((b) => (b.id === id ? { ...b, generating: true } : b))
     );
-    setGeneratingId(id);
 
     // Get class context
     let classContext = {};
@@ -403,7 +388,6 @@ Respond with only the content, no markdown formatting beyond basic lists.`;
         prev.map((b) => (b.id === id ? { ...b, generating: false } : b))
       );
     } finally {
-      setGeneratingId(null);
     }
   }, []);
 
@@ -440,7 +424,6 @@ Respond with only the content, no markdown formatting beyond basic lists.`;
                   onUpdate={updateBlock}
                   onDelete={deleteBlock}
                   onGenerate={handleGenerate}
-                  isFirst={blocks.indexOf(block) === 0}
                 />
               </Reorder.Item>
             ))}

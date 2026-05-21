@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { mockUnits } from '@/app/lib/mockData';
 import { UnitPlan, SavedPlan } from '@/app/lib/types';
-import { Library, Search, X, FileText, Download } from 'lucide-react';
+import { Search, X, FileText, Download } from 'lucide-react';
 
 const STORAGE_KEY = 'teachwise_saved_plans';
 const subjects = ['All Subjects', 'Mathematics', 'English', 'Science', 'Humanities & Social Sciences', 'Digital Technologies', 'Health & Physical Education'];
@@ -27,20 +27,23 @@ function savedPlanToUnit(plan: SavedPlan): UnitPlan {
   };
 }
 
+function loadSavedPlans(): SavedPlan[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
 export default function UnitsPage() {
+  const initialSavedPlans = loadSavedPlans();
   const [selectedSubject, setSelectedSubject] = useState('All Subjects');
   const [selectedYear, setSelectedYear] = useState('All Years');
   const [selectedUnit, setSelectedUnit] = useState<UnitPlan | null>(null);
   const [search, setSearch] = useState('');
-  const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
-  const [units, setUnits] = useState<UnitPlan[]>(mockUnits);
-
-  useEffect(() => {
-    const stored: SavedPlan[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    setSavedPlans(stored);
-    const savedAsUnits = stored.map(savedPlanToUnit);
-    setUnits([...mockUnits, ...savedAsUnits]);
-  }, []);
+  const [savedPlans] = useState<SavedPlan[]>(initialSavedPlans);
+  const [units] = useState<UnitPlan[]>(() => [...mockUnits, ...initialSavedPlans.map(savedPlanToUnit)]);
 
   const filtered = units.filter((u) => {
     const matchSubject = selectedSubject === 'All Subjects' || u.subject === selectedSubject;
