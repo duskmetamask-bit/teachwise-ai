@@ -3,6 +3,8 @@
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CheckSquare, Upload, FileText, Loader2, RefreshCw, Download } from 'lucide-react';
+import { recordActivity } from '@/app/lib/teachwise-store';
+import { exportTeachWiseDocx, exportTeachWisePptx, exportTeachWisePdf, markingResultToExportContent } from '@/app/lib/exporters';
 
 function LoadingSpinner() {
   return (
@@ -28,40 +30,6 @@ type MarkingResult = {
   areasForDevelopment: string[];
   nextSteps: string[];
 };
-
-const AUTO_MARK_SYSTEM_PROMPT = `You are an expert Australian teacher assessor with deep knowledge of:
-- Australian Curriculum v9 (AC9) achievement standards and assessment rubrics
-- Criterion-referenced assessment practices
-- Formative and summative evaluation methods
-
-Your task is to mark student work against a provided rubric. For each criterion in the rubric:
-1. Assess the student's work against the criterion levels
-2. Provide specific, actionable feedback
-3. Identify strengths and areas for development
-
-Always respond in this structured format (use markdown):
-## Overall Grade: [A/B/C/D]
-
-### Criterion-by-Criterion Feedback
-**Criterion Name — [Grade]**
-[Detailed feedback for this criterion]
-
-### Strengths
-- [Specific strength 1]
-- [Specific strength 2]
-- [Specific strength 3]
-
-### Areas for Development
-- [Specific area 1]
-- [Specific area 2]
-- [Specific area 3]
-
-### Next Steps
-1. [Actionable next step 1]
-2. [Actionable next step 2]
-3. [Actionable next step 3]
-
-Be specific and constructive. Ground your feedback in the actual evidence from the student's work.`;
 
 function parseResult(text: string): MarkingResult {
   const result: MarkingResult = {
@@ -158,6 +126,19 @@ function AutomarkContent() {
   const [result, setResult] = useState<MarkingResult | null>(null);
   const [rawResponse, setRawResponse] = useState('');
   const [showResult, setShowResult] = useState(false);
+  const exportContent = result
+    ? markingResultToExportContent(
+        'TeachWise Auto-Mark Result',
+        {
+          overallGrade: result.overallGrade,
+          criteria: result.criteria,
+          strengths: result.strengths,
+          areasForDevelopment: result.areasForDevelopment,
+          nextSteps: result.nextSteps,
+        },
+        studentFile?.name
+      )
+    : null;
 
   useEffect(() => {
     const prefill = searchParams.get('prefill');
@@ -175,6 +156,23 @@ function AutomarkContent() {
     });
   };
 
+  const parseUploadedFile = async (file: File): Promise<string> => {
+    if (file.name.endsWith('.txt')) {
+      return readFileText(file);
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/api/files/parse', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+    return data.text || '';
+  };
+
   const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
     type: 'student' | 'rubric'
@@ -182,28 +180,15 @@ function AutomarkContent() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.name.endsWith('.txt')) {
-      const text = await readFileText(file);
-      if (type === 'student') {
-        setStudentFile(file);
-        setStudentText(text);
-      } else {
-        setRubricFile(file);
-        setRubricText(text);
-      }
+    const text = await parseUploadedFile(file);
+    if (type === 'student') {
+      setStudentFile(file);
+      setStudentText(text);
     } else {
-      if (type === 'student') {
-        setStudentFile(file);
-        setStudentText('');
-      } else {
-        setRubricFile(file);
-        setRubricText('');
-      }
+      setRubricFile(file);
+      setRubricText(text);
     }
   };
-
-  const needsPaste = (file: File | null) => file !== null && !file.name.endsWith('.txt');
-
   const canSubmit = () => {
     const studentReady = studentFile && (studentFile.name.endsWith('.txt') ? studentText : studentText.length > 0);
     const rubricReady = rubricFile && (rubricFile.name.endsWith('.txt') ? rubricText : rubricText.length > 0);
@@ -217,25 +202,27 @@ function AutomarkContent() {
     setShowResult(false);
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/api/ai/mark', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [
-            {
-              role: 'user',
-              content: `Please mark the following student work against the provided rubric.\n\n---\n\n**STUDENT WORK:**\n${studentText}\n\n---\n\n**RUBRIC:**\n${rubricText}`,
-            },
-          ],
-          customSystemPrompt: AUTO_MARK_SYSTEM_PROMPT,
+          studentText,
+          rubricText,
+          studentName: studentFile?.name || '',
         }),
       });
 
       const data = await response.json();
-      const parsed = parseResult(data.response);
+      const parsed = data.parsed || parseResult(data.response);
       setResult(parsed);
       setRawResponse(data.response);
       setShowResult(true);
+      recordActivity({
+        type: 'work_marked',
+        title: 'Student work marked',
+        detail: studentFile?.name || 'Uploaded assessment',
+        minutesReclaimed: 20,
+      });
     } catch (error) {
       console.error('Marking error:', error);
     } finally {
@@ -253,17 +240,35 @@ function AutomarkContent() {
     setShowResult(false);
   };
 
+  const handleExport = async (type: 'docx' | 'pptx' | 'pdf') => {
+    if (!exportContent) return;
+    if (type === 'docx') {
+      await exportTeachWiseDocx(exportContent);
+    } else if (type === 'pptx') {
+      await exportTeachWisePptx(exportContent);
+    } else {
+      await exportTeachWisePdf(exportContent);
+    }
+    recordActivity({
+      type: 'exported',
+      title: 'Marking result exported',
+      detail: type.toUpperCase(),
+      minutesReclaimed: 0,
+    });
+  };
+
   return (
     <div className="animate-fade-in">
       {!showResult ? (
-        <div className="max-w-xl mx-auto">
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-              <CheckSquare className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />
-              Auto-Marking
-            </h2>
-            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              Upload student work and a rubric — get instant criterion-by-criterion feedback
+        <div className="mx-auto max-w-xl">
+          <div className="app-toolbar mb-6 rounded-[28px] p-5 md:p-6">
+            <div className="export-chip mb-3 w-fit">
+              <CheckSquare className="h-3.5 w-3.5" />
+              Auto-Mark
+            </div>
+            <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">Marking support that feels calm, fast, and teacher-led.</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-7" style={{ color: 'var(--color-text-secondary)' }}>
+              Upload student work and a rubric, review the AI draft, then export the result as PDF, DOCX, or PowerPoint.
             </p>
           </div>
 
@@ -334,43 +339,28 @@ function AutomarkContent() {
               </label>
             </div>
 
-            {(needsPaste(studentFile) || needsPaste(rubricFile)) && (
-              <div
-                className="p-4 rounded-xl text-xs"
-                style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-muted)' }}
-              >
-                For PDF/DOCX, please copy and paste the text into the text areas below
+            <div className="space-y-4">
+              <div>
+                <label className="label-dark">Student work text</label>
+                <textarea
+                  value={studentText}
+                  onChange={(e) => setStudentText(e.target.value)}
+                  placeholder="Student work is extracted automatically, but you can edit it here."
+                  className="input-dark"
+                  rows={6}
+                />
               </div>
-            )}
-
-            {(needsPaste(studentFile) || needsPaste(rubricFile) || studentText || rubricText) && (
-              <div className="space-y-4">
-                {needsPaste(studentFile) && (
-                  <div>
-                    <label className="label-dark">Student Work Text</label>
-                    <textarea
-                      value={studentText}
-                      onChange={(e) => setStudentText(e.target.value)}
-                      placeholder="Paste student work here..."
-                      className="input-dark"
-                      rows={6}
-                    />
-                  </div>
-                )}
-                {needsPaste(rubricFile) && (
-                  <div>
-                    <label className="label-dark">Rubric Text</label>
-                    <textarea
-                      value={rubricText}
-                      onChange={(e) => setRubricText(e.target.value)}
-                      placeholder="Paste rubric here..."
-                      className="input-dark"
-                      rows={6}
-                    />
-                  </div>
-                )}
+              <div>
+                <label className="label-dark">Rubric text</label>
+                <textarea
+                  value={rubricText}
+                  onChange={(e) => setRubricText(e.target.value)}
+                  placeholder="Rubric text is extracted automatically, but you can edit it here."
+                  className="input-dark"
+                  rows={6}
+                />
               </div>
-            )}
+            </div>
 
             <button
               onClick={handleSubmit}
@@ -401,21 +391,32 @@ function AutomarkContent() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-white">Marking Results</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={handleReset}
-                className="px-4 py-2 rounded-lg text-xs border flex items-center gap-1"
-                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+                className="export-chip"
               >
                 <RefreshCw className="w-3 h-3" />
                 New Analysis
               </button>
               <button
-                className="px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-1"
-                style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}
+                onClick={() => void handleExport('docx')}
+                className="export-chip"
+              >
+                DOCX
+              </button>
+              <button
+                onClick={() => void handleExport('pptx')}
+                className="export-chip"
+              >
+                PPTX
+              </button>
+              <button
+                onClick={() => void handleExport('pdf')}
+                className="export-chip"
               >
                 <Download className="w-3 h-3" />
-                Export PDF
+                PDF
               </button>
             </div>
           </div>

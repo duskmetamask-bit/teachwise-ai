@@ -24,6 +24,7 @@ import {
   Wand2,
   X,
 } from 'lucide-react';
+import { recordActivity } from '@/app/lib/teachwise-store';
 
 const STORAGE_KEY = 'teachwise_prefs';
 const HISTORY_KEY = 'teachwise_chat_history';
@@ -595,7 +596,7 @@ export default function ChatPage() {
 
     try {
       const conversationHistory = messages.map(m => ({ role: m.role, content: m.content }));
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -618,10 +619,22 @@ export default function ChatPage() {
         const plan = parsePlanFromMarkdown(aiContent, prefs.yearLevel || '', prefs.subject || '', '');
         setActivePlan(plan);
         setPlanPanelOpen(true);
+        recordActivity({
+          type: 'unit_saved',
+          title: 'Plan drafted in chat',
+          detail: plan.title,
+          minutesReclaimed: 15,
+        });
       }
 
       const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: aiContent, timestamp: new Date() };
       setMessages((prev) => [...prev, aiMsg]);
+      recordActivity({
+        type: 'chat_message',
+        title: 'Chat response generated',
+        detail: text.slice(0, 120),
+        minutesReclaimed: 5,
+      });
     } catch {
       setTimeout(() => {
         const aiMsg: Message = {

@@ -1,9 +1,21 @@
 import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+const geist = Geist({
+  subsets: ['latin'],
+  variable: '--font-sans',
+});
+
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-mono',
+});
+
 export const metadata: Metadata = {
-  title: "TeachWise AI — AI Teaching Assistant for Australian F-6",
-  description: "Your intelligent teaching assistant. Lesson plans, rubrics, assessments, and more — all aligned to the Australian Curriculum (AC9).",
+  title: "TeachWise — Less marking. More teaching.",
+  description: "TeachWise is the AI teaching assistant for Australian F-6 teachers. Plan lessons, build rubrics, mark work, and reclaim time.",
 };
 
 export default function RootLayout({
@@ -13,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className={`${geist.variable} ${geistMono.variable} antialiased`}>{children}</body>
     </html>
   );
 }

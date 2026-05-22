@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TEACHWISE_SYSTEM_PROMPT, buildAc9Context, buildTeacherContextBlock } from '@/app/lib/teachwise-ai';
+import { TEACHWISE_SYSTEM_PROMPT, buildAc9Context, buildTeacherContextBlock, extractAc9Codes } from '@/app/lib/teachwise-ai';
 import { callMiniMax, extractTextContent } from '@/app/lib/minimax';
-import { extractAc9Codes } from '@/app/lib/teachwise-ai';
 
 export async function POST(req: NextRequest) {
   try {

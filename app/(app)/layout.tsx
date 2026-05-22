@@ -1,9 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, MessageSquare, ClipboardList, Library, Calendar, CheckSquare, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  LayoutDashboard,
+  MessageSquare,
+  ClipboardList,
+  Library,
+  Calendar,
+  CheckSquare,
+  User,
+  ChevronLeft,
+  ChevronRight,
+  BadgeInfo,
+  BarChart3,
+} from 'lucide-react';
+import { loadTeacherProfile, loadActivityEvents, estimateMinutesReclaimed } from '@/app/lib/teachwise-store';
+import { TeachWiseBrand } from '@/app/components/teachwise-brand';
 
 const navItems = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -11,135 +25,144 @@ const navItems = [
   { label: 'Rubrics', href: '/rubrics', icon: ClipboardList },
   { label: 'Unit Library', href: '/units', icon: Library },
   { label: 'Lesson Planner', href: '/planner', icon: Calendar },
-  { label: 'Auto-Marking', href: '/automark', icon: CheckSquare },
+  { label: 'Auto-Mark', href: '/automark', icon: CheckSquare },
   { label: 'Profile', href: '/profile', icon: User },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const profile = useMemo(() => loadTeacherProfile(), []);
+  const activity = useMemo(() => loadActivityEvents(), []);
+  const reclaimed = estimateMinutesReclaimed(activity);
 
   return (
     <div className="app-layout flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--color-bg)' }}>
-      {/* Sidebar */}
       <aside
         className="app-sidebar flex flex-col transition-all duration-300"
         style={{
-          width: collapsed ? 72 : 260,
-          minWidth: collapsed ? 72 : 260,
-          background: 'linear-gradient(180deg, rgba(10,18,36,0.98), rgba(13,24,48,0.96))',
+          width: collapsed ? 88 : 284,
+          minWidth: collapsed ? 88 : 284,
+          background:
+            'linear-gradient(180deg, rgba(7,17,31,0.98), rgba(10,20,35,0.96))',
           borderRight: '1px solid var(--color-border-subtle)',
         }}
-      >
-        {/* Logo */}
-        <div
-          className="flex items-center gap-3 px-4 py-5"
-          style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
         >
-          {/* Owl logo SVG */}
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #8b2df5 0%, #6366f1 100%)' }}
-          >
-            <svg width="22" height="22" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <ellipse cx="60" cy="72" rx="30" ry="32" fill="white" opacity="0.9"/>
-              <ellipse cx="60" cy="78" rx="18" ry="20" fill="white"/>
-              <circle cx="46" cy="55" r="14" fill="white"/>
-              <circle cx="74" cy="55" r="14" fill="white"/>
-              <circle cx="47" cy="55" r="7" fill="#1e1e38"/>
-              <circle cx="75" cy="55" r="7" fill="#1e1e38"/>
-              <circle cx="49" cy="52" r="3" fill="white"/>
-              <circle cx="77" cy="52" r="3" fill="white"/>
-              <path d="M56 70 L60 76 L64 70" fill="#f59e0b" stroke="#f59e0b" strokeWidth="1" strokeLinejoin="round"/>
-              <ellipse cx="44" cy="48" rx="5" ry="7" fill="#8b2df5" opacity="0.6"/>
-              <ellipse cx="76" cy="48" rx="5" ry="7" fill="#8b2df5" opacity="0.6"/>
-            </svg>
-          </div>
-          {!collapsed && (
-            <div className="animate-fade-in overflow-hidden">
-              <div className="text-base font-bold text-white">TeachWise</div>
-              <div className="text-xs" style={{ color: '#fbbf24' }}>Teacher OS</div>
+        <div className="flex items-center gap-3 px-4 py-5" style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
+          <TeachWiseBrand
+            compact={collapsed}
+            className="min-w-0"
+            tagline="Less marking. More teaching."
+          />
+        </div>
+
+        <div className="px-4 py-4">
+          {!collapsed ? (
+            <div className="teachwise-panel rounded-2xl p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--color-text-muted)' }}>
+                <BadgeInfo className="h-3.5 w-3.5" />
+                Teaching context
+              </div>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span style={{ color: 'var(--color-text-muted)' }}>Teacher</span>
+                  <span className="truncate text-white">{profile.name || 'Set your profile'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span style={{ color: 'var(--color-text-muted)' }}>Year</span>
+                  <span className="text-white">{profile.yearLevel || 'F-6'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span style={{ color: 'var(--color-text-muted)' }}>Subject</span>
+                  <span className="text-white">{profile.subject || 'Generalist'}</span>
+                </div>
+              </div>
+              <div className="mt-4 rounded-xl px-3 py-2 text-xs" style={{ backgroundColor: 'rgba(77,208,196,0.08)', color: 'var(--color-accent)' }}>
+                {reclaimed > 0 ? `${Math.round(reclaimed)} minutes reclaimed in this workspace` : 'Track your reclaimed time here'}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-center text-xs uppercase tracking-[0.16em]" style={{ color: 'var(--color-text-muted)' }}>
+              <BarChart3 className="mx-auto h-4 w-4" />
             </div>
           )}
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 py-4 overflow-y-auto">
+        <nav className="flex-1 overflow-y-auto py-2">
           {navItems.map((item) => {
             const active = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 mx-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 mb-1 ${
+                className={`mx-3 mb-1 flex items-center gap-3 rounded-2xl px-3 py-3 text-sm transition-all duration-200 ${
                   active
-                    ? 'bg-[var(--color-accent)] text-white font-semibold'
-                    : 'text-[var(--color-text-muted)] hover:text-white hover:bg-[var(--color-sidebar-hover)]'
+                    ? 'bg-[rgba(77,208,196,0.12)] text-white'
+                    : 'text-[var(--color-text-muted)] hover:bg-[rgba(255,255,255,0.05)] hover:text-white'
                 }`}
                 title={collapsed ? item.label : undefined}
               >
-                <item.icon
-                  className={`w-5 h-5 flex-shrink-0 ${active ? 'text-white' : 'text-[var(--color-accent)]'}`}
-                />
-                {!collapsed && <span className="animate-fade-in whitespace-nowrap">{item.label}</span>}
+                <item.icon className={`h-5 w-5 flex-shrink-0 ${active ? 'text-[var(--color-accent)]' : ''}`} />
+                {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
-        {/* Collapse Toggle */}
-        <div
-          className="p-4"
-          style={{ borderTop: '1px solid var(--color-border-subtle)' }}
-        >
+        <div className="p-4" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
+          {!collapsed && (
+            <div className="mb-3 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-xs leading-5" style={{ color: 'var(--color-text-secondary)' }}>
+              Open. Focused. Built for real classrooms, not compliance theatre.
+            </div>
+          )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="w-full flex items-center justify-center py-2.5 rounded-xl text-sm transition-colors"
+            className="flex w-full items-center justify-center rounded-2xl py-2.5 text-sm transition-colors"
             style={{ backgroundColor: 'var(--color-surface-raised)', color: 'var(--color-text-muted)' }}
           >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="app-main flex-1 overflow-y-auto">
-        {/* Top Bar */}
         <header
-          className="flex items-center justify-between px-6 py-4"
+          className="flex items-center justify-between px-5 py-4 md:px-6"
           style={{
-            backgroundColor: 'rgba(18, 26, 47, 0.78)',
+            backgroundColor: 'rgba(8, 17, 32, 0.72)',
             backdropFilter: 'blur(18px)',
             borderBottom: '1px solid var(--color-border-subtle)',
           }}
         >
-          <div>
-            <h1 className="text-lg font-semibold text-white">
-              {navItems.find((n) => n.href === pathname)?.label || 'TeachWise AI'}
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-semibold text-white">
+              {navItems.find((item) => item.href === pathname)?.label || 'TeachWise'}
             </h1>
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              Free beta workspace for Australian F-6 teachers
+            </p>
           </div>
-          <div className="flex items-center gap-4">
-            <div
-              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
-              style={{
-                backgroundColor: 'var(--color-accent-dim)',
-                color: 'var(--color-accent)',
-              }}
-            >
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }} />
-              Pro Plan
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold md:flex" style={{ color: 'var(--color-warning)' }}>
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: 'var(--color-warning)' }} />
+              Free beta
             </div>
             <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white"
-              style={{ backgroundColor: 'var(--color-accent)' }}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white"
+              style={{ background: 'linear-gradient(135deg, rgba(77,208,196,1), rgba(124,183,255,1))' }}
+              title={profile.name || 'Teacher profile'}
             >
-              JD
+              {(profile.name || 'T')
+                .split(' ')
+                .map((part) => part[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase()}
             </div>
           </div>
         </header>
 
-        {/* Page Content */}
-        <div className="p-6">{children}</div>
+        <div className="dashboard-surface p-4 md:p-6">{children}</div>
       </main>
     </div>
   );
