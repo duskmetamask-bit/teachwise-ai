@@ -12,6 +12,51 @@ export interface TeacherPrefs {
   state: string;
 }
 
+export interface WorkspaceMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: string;
+}
+
+export type OutputKind =
+  | 'lesson'
+  | 'rubric'
+  | 'report'
+  | 'email'
+  | 'sub'
+  | 'quiz'
+  | 'align'
+  | 'newsletter'
+  | 'differentiate'
+  | 'iep'
+  | 'behaviour'
+  | 'generic';
+
+export interface SavedOutputRecord {
+  kind: OutputKind;
+  title: string;
+  savedAt: string;
+  content: string;
+}
+
+export interface EmailActionLog {
+  student: string;
+  className: string;
+  date: string;
+  intentType: string;
+  actionsTaken: string[];
+  subject?: string;
+}
+
+export interface WorkspaceSnapshot {
+  prefs: TeacherPrefs;
+  messages: WorkspaceMessage[];
+  savedOutputs: SavedOutputRecord[];
+  emailLogs: EmailActionLog[];
+  updatedAt: string;
+}
+
 export interface UnitPlan {
   id: string;
   title: string;

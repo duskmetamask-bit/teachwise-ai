@@ -1,1004 +1,1121 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Message, TeacherPrefs } from '@/app/lib/types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
+  Archive,
   Bot,
-  BookMarked,
-  CheckCircle2,
-  ChevronRight,
-  ClipboardCheck,
+  Clipboard,
+  Copy,
   Download,
-  FileText,
-  GraduationCap,
-  Mic,
-  MicOff,
+  FileDown,
+  GripVertical,
+  Mail,
+  PanelRightOpen,
   PenLine,
+  RotateCcw,
+  Save,
+  Search,
   Send,
-  Settings,
   Sparkles,
-  Target,
-  Trash2,
-  UserRound,
-  Wand2,
+  Table2,
   X,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import {
+  EmailActionLog,
+  SavedOutputRecord,
+  TeacherPrefs,
+  WorkspaceMessage,
+  WorkspaceSnapshot,
+} from '@/app/lib/types';
 
 const STORAGE_KEY = 'teachwise_prefs';
-const HISTORY_KEY = 'teachwise_chat_history';
+const HISTORY_KEY = 'teachwise_premium_history';
+const LOG_KEY = 'teachwise_email_action_logs';
+const SAVED_OUTPUTS_KEY = 'teachwise_saved_outputs';
+const WORKSPACE_ENDPOINT = '/api/workspace';
+const DEFAULT_PREFS: TeacherPrefs = { name: '', yearLevel: '', subject: '', state: 'WA' };
 
-const defaultWelcome = `👋 **TeachWise AI — your teaching assistant**
+type CommandId = 'plan' | 'rubric' | 'report' | 'email' | 'quiz' | 'sub' | 'differentiate' | 'align' | 'newsletter' | 'iep' | 'behaviour';
+type IntentType = 'Concern' | 'Absence' | 'Request' | 'General' | 'Complaint';
+type Tone = 'Warm' | 'Formal' | 'Brief';
+type OutputKind = 'lesson' | 'rubric' | 'report' | 'email' | 'sub' | 'quiz' | 'align' | 'newsletter' | 'differentiate' | 'iep' | 'behaviour' | 'generic';
 
-I'm aligned to the Australian Curriculum v9 (AC9) and I'm here to help you build better lessons, faster.
-
-**What I can help with:**
-• **Lesson planning** — AC9-aligned, with content descriptors, elaborations, and cross-curriculum priorities
-• **Rubrics** — Analytic or holistic, linked to achievement standards by year level
-• **Unit building** — Structured sequences with duration, assessment, and resources
-• **Auto-marking** — Upload student work + rubric, get structured feedback instantly
-
-Just tell me what year level, subject, and topic you're working on — I'll take it from there.`;
-
-// ─── Types ────────────────────────────────────────────────────────
-interface PlanSection {
+interface Message {
   id: string;
-  type: 'overview' | 'ac9' | 'walt' | 'tib' | 'wilf' | 'lesson' | 'assessment' | 'differentiation' | 'resources' | 'reflection';
-  label: string;
+  role: 'user' | 'assistant' | 'system';
   content: string;
-  editing?: boolean;
+  timestamp: Date;
 }
 
-interface ActivePlan {
-  title: string;
-  yearLevel: string;
+interface StudentReport {
+  id: string;
+  name: string;
   subject: string;
-  topic: string;
-  duration: string;
-  sections: PlanSection[];
+  comment: string;
 }
 
-// ─── Speech Recognition types ────────────────────────────────────
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-interface SpeechRecognitionResultList {
-  length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-}
-interface SpeechRecognitionResult {
-  isFinal: boolean;
-  length: number;
-  item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
-}
-interface SpeechRecognitionAlternative {
-  transcript: string;
-  confidence: number;
-}
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onend: (() => void) | null;
-  onerror: ((event: Event) => void) | null;
-  start(): void;
-  stop(): void;
-  abort(): void;
+interface EmailAction {
+  id: string;
+  label: string;
+  checked: boolean;
 }
 
-declare global {
-  interface Window {
-    SpeechRecognition: new () => SpeechRecognition;
-    webkitSpeechRecognition: new () => SpeechRecognition;
+interface EmailDraft {
+  intent: IntentType;
+  tone: Tone;
+  to: string;
+  subject: string;
+  body: string;
+  student: string;
+  className: string;
+  actions: EmailAction[];
+}
+
+interface OutputCard {
+  id: string;
+  kind: OutputKind;
+  title: string;
+  subtitle: string;
+  content: string;
+  createdAt: Date;
+  reports?: StudentReport[];
+  email?: EmailDraft;
+}
+
+type EmailLog = EmailActionLog & { intentType: IntentType };
+
+const commands: Array<{ id: CommandId; command: string; label: string; hint: string; kind: OutputKind }> = [
+  { id: 'plan', command: '/plan', label: 'Lesson Plan', hint: 'Build an AC9-aligned lesson or unit plan', kind: 'lesson' },
+  { id: 'rubric', command: '/rubric', label: 'Rubric', hint: 'Create an editable achievement rubric', kind: 'rubric' },
+  { id: 'report', command: '/report', label: 'Report Writer', hint: 'Turn assessment notes into growth comments', kind: 'report' },
+  { id: 'email', command: '/email', label: 'Email Router', hint: 'Detect intent, draft reply, and log actions', kind: 'email' },
+  { id: 'quiz', command: '/quiz', label: 'Question Bank', hint: 'Generate quiz cards with answers', kind: 'quiz' },
+  { id: 'sub', command: '/sub', label: 'Sub Plan', hint: 'Create a time-stamped relief teacher plan', kind: 'sub' },
+  { id: 'differentiate', command: '/differentiate', label: 'Differentiation', hint: 'Create support, core, and extension tiers', kind: 'differentiate' },
+  { id: 'align', command: '/align', label: 'Alignment Check', hint: 'Compare lesson evidence to standards', kind: 'align' },
+  { id: 'newsletter', command: '/newsletter', label: 'Newsletter', hint: 'Draft a weekly family update', kind: 'newsletter' },
+  { id: 'iep', command: '/iep', label: 'IEP Notes', hint: 'Structure progress evidence for IEP goals', kind: 'iep' },
+  { id: 'behaviour', command: '/behaviour', label: 'Behaviour Notes', hint: 'Create card and CSV-ready behaviour notes', kind: 'behaviour' },
+];
+
+const polishOptions = ['Make it briefer', 'Add detail', 'Add Blooms tags', 'Australian format'];
+const recentSubjects = ['English', 'Science', 'Mathematics', 'HASS'];
+
+function loadPrefs(): TeacherPrefs {
+  if (typeof window === 'undefined') return DEFAULT_PREFS;
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '') || DEFAULT_PREFS;
+  } catch {
+    return DEFAULT_PREFS;
   }
 }
 
-// ─── Plan Parser ──────────────────────────────────────────────────
-function parsePlanFromMarkdown(markdown: string, yearLevel = '', subject = '', topic = ''): ActivePlan {
-  const sections: PlanSection[] = [];
-
-  // Try XML marker-based parsing first
-  const sectionMarkerRegex = /\{\{SECTION:([^}]+)\}\}([\s\S]*?)\{\{\/SECTION:[^}]+\}\}/g;
-  let match;
-  let hasMarkers = false;
-
-  while ((match = sectionMarkerRegex.exec(markdown)) !== null) {
-    hasMarkers = true;
-    const sectionName = match[1].trim();
-    const content = match[2].trim();
-
-    // Map section names to types
-    let type: PlanSection['type'] = 'overview';
-    let label = sectionName;
-
-    if (sectionName === 'overview') { type = 'overview'; label = 'Unit Overview'; }
-    else if (sectionName === 'ac9') { type = 'ac9'; label = 'AC9 Curriculum'; }
-    else if (sectionName === 'unit_details') { type = 'overview'; label = 'Unit Details'; }
-    else if (sectionName === 'assessment') { type = 'assessment'; label = 'Assessment'; }
-    else if (sectionName === 'lessons') { /* container, skip */ continue; }
-    else if (sectionName.startsWith('lesson-')) {
-      // Extract lesson number and title from content
-      const lessonNum = sectionName.replace('lesson-', '');
-      const titleMatch = content.match(/\*\*Lesson \d+:?\s+(.+?)\*\*/);
-      const title = titleMatch ? titleMatch[1] : `Lesson ${lessonNum}`;
-      sections.push({
-        id: `lesson-${lessonNum}`,
-        type: 'lesson',
-        label: `Lesson ${lessonNum}: ${title}`,
-        content,
-      });
-      continue;
-    }
-    else if (sectionName === 'differentiation') { type = 'differentiation'; label = 'Differentiation'; }
-    else if (sectionName === 'resources') { type = 'resources'; label = 'Resources'; }
-
-    sections.push({
-      id: `section-${sections.length}`,
-      type,
-      label,
-      content,
-    });
+function loadMessages(): Message[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') as Message[];
+    return parsed.map((message) => ({ ...message, timestamp: new Date(message.timestamp) }));
+  } catch {
+    return [];
   }
-
-  // If no XML markers found, fall back to heuristic parsing
-  if (!hasMarkers) {
-    const lines = markdown.split('\n');
-    let currentSection: PlanSection | null = null;
-    let currentContent: string[] = [];
-
-    const flush = () => {
-      if (!currentSection) return;
-      const content = currentContent.join('\n').trim();
-      if (content) {
-        sections.push({ ...currentSection, content });
-      }
-      currentSection = null;
-      currentContent = [];
-    };
-
-    for (const line of lines) {
-      // Lesson headers
-      const lessonMatch = line.match(/^\*\*Lesson\s+(\d+):?\s+(.+?)\*\*$/);
-      if (lessonMatch) {
-        flush();
-        sections.push({
-          id: `lesson-${lessonMatch[1]}`,
-          type: 'lesson',
-          label: `Lesson ${lessonMatch[1]}: ${lessonMatch[2]}`,
-          content: '',
-        });
-        continue;
-      }
-
-      // Section headers: ### Section Name
-      const sectionMatch = line.match(/^### (.+)/);
-      if (sectionMatch) {
-        flush();
-        const label = sectionMatch[1];
-        let type: PlanSection['type'] = 'overview';
-        if (/overview|summary/i.test(label)) type = 'overview';
-        else if (/ac9|curriculum|alignment/i.test(label)) type = 'ac9';
-        else if (/walt|learning intention/i.test(label)) type = 'walt';
-        else if (/tib|because/i.test(label)) type = 'tib';
-        else if (/wilf|looking for|success criteria/i.test(label)) type = 'wilf';
-        else if (/assessment/i.test(label)) type = 'assessment';
-        else if (/differentiation/i.test(label)) type = 'differentiation';
-        else if (/resource/i.test(label)) type = 'resources';
-        else if (/reflection/i.test(label)) type = 'reflection';
-        currentSection = { id: `section-${sections.length}`, type, label, content: '' };
-        continue;
-      }
-
-      if (currentSection) {
-        currentContent.push(line);
-      } else if (line.trim() && !line.startsWith('#') && !line.startsWith('*') && !line.startsWith('-')) {
-        currentContent.push(line);
-      }
-    }
-    flush();
-
-    if (!sections.some(s => s.type === 'overview') && currentContent.length > 0) {
-      sections.unshift({
-        id: 'overview',
-        type: 'overview',
-        label: 'Unit Overview',
-        content: currentContent.join('\n').trim(),
-      });
-    }
-  }
-
-  const title = `Year ${yearLevel || 'X'} — ${subject || 'Subject'} — ${topic || 'Topic'}`;
-
-  return { title, yearLevel, subject, topic, duration: '', sections };
 }
 
-function getSectionColor(type: PlanSection['type']): string {
-  const colors: Record<string, string> = {
-    overview: '#38bdf8',
-    ac9: '#818cf8',
-    walt: '#14b8a6',
-    tib: '#f59e0b',
-    wilf: '#a78bfa',
-    lesson: '#f59e0b',
-    assessment: '#fb7185',
-    differentiation: '#f97316',
-    resources: '#94a3b8',
-    reflection: '#14b8a6',
+function loadLogs(): EmailLog[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(LOG_KEY) || '[]') as EmailLog[];
+  } catch {
+    return [];
+  }
+}
+
+function loadSavedOutputs(): SavedOutputRecord[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(SAVED_OUTPUTS_KEY) || '[]') as SavedOutputRecord[];
+  } catch {
+    return [];
+  }
+}
+
+function normalisePrefs(prefs?: Partial<TeacherPrefs>): TeacherPrefs {
+  return {
+    ...DEFAULT_PREFS,
+    ...(prefs || {}),
   };
-  return colors[type] || '#14b8a6';
 }
 
-function getSectionIcon(type: PlanSection['type']) {
-  if (type === 'ac9') return GraduationCap;
-  if (type === 'lesson') return BookMarked;
-  if (type === 'assessment') return ClipboardCheck;
-  if (type === 'walt' || type === 'wilf') return Target;
-  if (type === 'reflection') return CheckCircle2;
-  return FileText;
+function rehydrateMessages(items?: WorkspaceMessage[]): Message[] {
+  return (items || []).map((message) => ({
+    ...message,
+    timestamp: new Date(message.timestamp),
+  }));
 }
 
-function renderInlineMarkdown(text: string) {
-  return text.split(/\*\*(.*?)\*\*/g).map((part, index) =>
-    index % 2 === 1 ? <strong key={index}>{part}</strong> : part
+function serialiseMessages(items: Message[]): WorkspaceMessage[] {
+  return items.map((message) => ({
+    ...message,
+    timestamp: message.timestamp.toISOString(),
+  }));
+}
+
+function hasWorkspaceData(snapshot: Partial<WorkspaceSnapshot>) {
+  return Boolean(
+    snapshot.messages?.length ||
+    snapshot.savedOutputs?.length ||
+    snapshot.emailLogs?.length ||
+    snapshot.prefs?.name ||
+    snapshot.prefs?.yearLevel ||
+    snapshot.prefs?.subject
   );
 }
 
-// ─── Plan Editor Panel ───────────────────────────────────────────
-function PlanEditorPanel({
-  plan,
-  onClose,
-  onUpdate,
-}: {
-  plan: ActivePlan;
-  onClose: () => void;
-  onUpdate: (plan: ActivePlan) => void;
-}) {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
+function normaliseFileName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'teachwise-export';
+}
 
-  const startEdit = (section: PlanSection) => {
-    setEditingId(section.id);
-    setEditValue(section.content);
+function detectCommand(input: string): (typeof commands)[number] {
+  const explicit = commands.find((item) => input.trim().toLowerCase().startsWith(item.command));
+  if (explicit) return explicit;
+  const lower = input.toLowerCase();
+  if (/parent|dear|email|absence|complaint|concern/.test(lower)) return commands.find((c) => c.id === 'email')!;
+  if (/report|student|assessment|percentage|rubric score|term/.test(lower)) return commands.find((c) => c.id === 'report')!;
+  if (/standard|ac9|align|descriptor/.test(lower)) return commands.find((c) => c.id === 'align')!;
+  if (/relief|sub plan|substitute/.test(lower)) return commands.find((c) => c.id === 'sub')!;
+  if (/quiz|question bank|test/.test(lower)) return commands.find((c) => c.id === 'quiz')!;
+  return commands.find((c) => c.id === 'plan')!;
+}
+
+function detectSuggestion(input: string) {
+  if (!input.trim()) return null;
+  const lower = input.toLowerCase();
+  if (/dear|parent|email|absence|complaint|concern/.test(lower)) return 'Handle this email? Y/N';
+  if (/score|rubric|assessment|student|percent|grade/.test(lower)) return 'Write report comments? Y/N';
+  if (/lesson|unit|learning intention|success criteria/.test(lower)) return 'Generate lesson plan? Y/N';
+  return null;
+}
+
+function detectIntent(text: string): IntentType {
+  const lower = text.toLowerCase();
+  if (/complaint|unacceptable|angry|upset|disappointed|escalate/.test(lower)) return 'Complaint';
+  if (/absent|absence|sick|away|appointment/.test(lower)) return 'Absence';
+  if (/can you|could you|request|please provide|meeting/.test(lower)) return 'Request';
+  if (/concern|worried|struggling|issue|behaviour|behavior/.test(lower)) return 'Concern';
+  return 'General';
+}
+
+function inferStudentName(text: string) {
+  const patterns = [
+    /student[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,
+    /about\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/,
+    /\b([A-Z][a-z]+)\s+(?:has|is|was|needs|scored)\b/,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) return match[1].trim();
+  }
+  return 'Student';
+}
+
+function plainTextForOutput(output: OutputCard) {
+  if (output.reports?.length) {
+    return output.reports.map((report) => `${report.name} - ${report.subject}\n${report.comment}`).join('\n\n');
+  }
+  if (output.email) {
+    return `To: ${output.email.to}\nSubject: ${output.email.subject}\n\n${output.email.body}`;
+  }
+  return `${output.title}\n${output.subtitle}\n\n${output.content}`;
+}
+
+function buildReportCards(text: string, prefs: TeacherPrefs): StudentReport[] {
+  const subject = prefs.subject || 'English';
+  const multiMatch = text.match(/for\s+(.+?)(?:\s+with\b|[.,\n]|$)/i);
+  const extractedNames = multiMatch
+    ? multiMatch[1]
+        .split(/,| and | & | \/ /i)
+        .map((name) => name.trim())
+        .filter((name) => /^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?$/.test(name) && !/^(year|english|mathematics|science|hass|teacher)$/i.test(name))
+    : [];
+  const names = Array.from(new Set([
+    ...extractedNames,
+    ...(text.match(/\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)?(?=\s+(?:scored|has|is|needs|achieved|demonstrated))/g) || []),
+  ]));
+  const fallbackNames = names.length ? names : [inferStudentName(text)];
+
+  return fallbackNames.slice(0, 8).map((name, index) => ({
+    id: `${Date.now()}-${index}`,
+    name,
+    subject,
+    comment: `${name} has demonstrated a developing ability to apply key ${subject.toLowerCase()} skills with increasing confidence. ${name.split(' ')[0]} can now identify important ideas, explain thinking using subject vocabulary, and contribute thoughtfully during class tasks. The next step is to strengthen accuracy and independence by checking work against the success criteria before submitting. With continued practice, ${name.split(' ')[0]} is well placed to make steady progress next term.`,
+  }));
+}
+
+function buildEmailDraft(text: string, tone: Tone, prefs: TeacherPrefs): EmailDraft {
+  const intent = detectIntent(text);
+  const student = inferStudentName(text);
+  const firstName = student.split(' ')[0];
+  const toneOpeners: Record<Tone, string> = {
+    Warm: 'Thank you for getting in touch. I appreciate you sharing this with me.',
+    Formal: 'Thank you for your email. I acknowledge the information you have provided.',
+    Brief: 'Thanks for your email.',
   };
+  const body = `Dear Parent/Carer,\n\n${toneOpeners[tone]}\n\nI will follow up regarding ${firstName} and make sure the relevant information is checked against our class records. If helpful, I am also happy to arrange a short meeting so we can agree on the next best step together.\n\nKind regards,\n${prefs.name || 'Class Teacher'}`;
 
-  const saveEdit = (id: string) => {
-    onUpdate({
-      ...plan,
-      sections: plan.sections.map(s =>
-        s.id === id ? { ...s, content: editValue } : s
-      ),
-    });
-    setEditingId(null);
-    setEditValue('');
+  return {
+    intent,
+    tone,
+    to: 'Parent/Carer',
+    subject: `${intent}: ${student}`,
+    body,
+    student,
+    className: prefs.yearLevel ? `Year ${prefs.yearLevel} ${prefs.subject || ''}`.trim() : prefs.subject || 'Class',
+    actions: [
+      { id: 'meeting', label: 'Schedule meeting', checked: intent === 'Complaint' || intent === 'Concern' },
+      { id: 'records', label: 'Log to records', checked: true },
+      { id: 'specialist', label: 'Flag for specialist', checked: intent === 'Concern' },
+    ],
   };
+}
 
-  const handleExportDOCX = async () => {
-    const { Document, Packer, Paragraph, HeadingLevel, TextRun } = await import('docx');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const children: any[] = [
-      new Paragraph({
-        children: [new TextRun({ text: plan.title, bold: true, size: 48 })],
-        heading: HeadingLevel.TITLE,
-      }),
-    ];
+function fallbackContent(kind: OutputKind, text: string, prefs: TeacherPrefs) {
+  const year = prefs.yearLevel ? `Year ${prefs.yearLevel}` : 'Year level';
+  const subject = prefs.subject || 'Subject';
+  if (kind === 'sub') {
+    return `8:50 - Welcome and roll\nSettle students, explain the day, and display the learning intention.\n\n9:10 - Explicit teaching\nRevise key vocabulary for ${subject}. Use the provided examples and check for understanding.\n\n9:35 - Independent task\nStudents complete the main activity. Early finishers add detail or explain their reasoning.\n\n10:20 - Reflection\nStudents share one success and one question for the regular teacher.`;
+  }
+  if (kind === 'align') {
+    return `| Standard | Evidence in plan | Gap | Fix |\n| --- | --- | --- | --- |\n| AC9 descriptor | ${text.slice(0, 80) || 'Provided lesson evidence'} | Needs clearer assessment evidence | Add an exit ticket linked to the success criteria |\n| Achievement standard | Students practise core skill | Differentiation not visible | Add support, core, and extension tasks |`;
+  }
+  if (kind === 'rubric') {
+    return `| Criteria | Emerging | Developing | Proficient | Extending |\n| --- | --- | --- | --- | --- |\n| Understanding | Identifies simple ideas | Explains key ideas | Applies concepts accurately | Transfers learning to new contexts |\n| Communication | Uses limited vocabulary | Uses some ${subject} vocabulary | Explains clearly | Justifies choices with evidence |`;
+  }
+  if (kind === 'quiz') {
+    return `1. What is the key idea in this topic?\nAnswer: Students should identify the central concept and explain it in their own words.\n\n2. Which example best shows the learning intention?\nAnswer: The example that uses evidence and correct subject vocabulary.\n\n3. How could you improve your response?\nAnswer: Add detail, check accuracy, and connect to the success criteria.`;
+  }
+  if (kind === 'differentiate') {
+    return `Support: Provide sentence starters, visuals, partner rehearsal, and a worked example.\n\nCore: Students complete the main task independently using the success criteria.\n\nExtension: Students justify their thinking, create a new example, and explain transfer to a new context.`;
+  }
+  return `${year} - ${subject}\n\nLearning Intention\nWe are learning to understand and apply the key ideas in this topic.\n\nSuccess Criteria\n- I can explain the main concept in my own words.\n- I can use subject vocabulary accurately.\n- I can show my thinking with evidence.\n\nLesson Sequence\n1. Hook: quick prompt or image stimulus.\n2. Explicit teaching: model the skill.\n3. Guided practice: complete an example together.\n4. Independent task: students apply the skill.\n5. Reflection: exit ticket linked to the success criteria.`;
+}
 
-    for (const section of plan.sections) {
+function createOutput(kind: OutputKind, content: string, prompt: string, prefs: TeacherPrefs, tone: Tone): OutputCard {
+  const titleByKind: Record<OutputKind, string> = {
+    lesson: 'Lesson Plan',
+    rubric: 'Rubric',
+    report: 'Report Comments',
+    email: 'Email Draft',
+    sub: 'Sub Plan',
+    quiz: 'Question Bank',
+    align: 'Alignment Check',
+    newsletter: 'Weekly Newsletter',
+    differentiate: 'Differentiation Plan',
+    iep: 'IEP Progress Notes',
+    behaviour: 'Behaviour Notes',
+    generic: 'TeachWise Output',
+  };
+  const finalContent = content.trim() || fallbackContent(kind, prompt, prefs);
+  return {
+    id: `${Date.now()}`,
+    kind,
+    title: titleByKind[kind],
+    subtitle: `${prefs.yearLevel ? `Year ${prefs.yearLevel}` : 'Teaching'} ${prefs.subject || 'workspace'}`,
+    content: finalContent,
+    createdAt: new Date(),
+    reports: kind === 'report' ? buildReportCards(prompt, prefs) : undefined,
+    email: kind === 'email' ? buildEmailDraft(prompt, tone, prefs) : undefined,
+  };
+}
+
+async function exportDocx(output: OutputCard) {
+  const { Document, HeadingLevel, Packer, Paragraph, TextRun } = await import('docx');
+  const children = [
+    new Paragraph({ text: output.title, heading: HeadingLevel.TITLE }),
+    new Paragraph({ children: [new TextRun({ text: output.subtitle, italics: true })] }),
+    new Paragraph({ text: '' }),
+  ];
+
+  if (output.reports?.length) {
+    output.reports.forEach((report) => {
       children.push(
-        new Paragraph({
-          children: [new TextRun({ text: section.label, bold: true, size: 32 })],
-          heading: HeadingLevel.HEADING_2,
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: section.content || '(No content yet)' })],
-        })
+        new Paragraph({ text: `${report.name} - ${report.subject}`, heading: HeadingLevel.HEADING_2 }),
+        new Paragraph({ children: [new TextRun(report.comment)] }),
+        new Paragraph({ text: '' })
       );
+    });
+  } else if (output.email) {
+    children.push(
+      new Paragraph({ text: `To: ${output.email.to}` }),
+      new Paragraph({ text: `Subject: ${output.email.subject}` }),
+      new Paragraph({ text: '' }),
+      ...output.email.body.split('\n').map((line) => new Paragraph({ text: line }))
+    );
+  } else {
+    finalLines(output.content).forEach((line) => {
+      children.push(new Paragraph({ text: line }));
+    });
+  }
+
+  const doc = new Document({ sections: [{ children }] });
+  const blob = await Packer.toBlob(doc);
+  downloadBlob(blob, `${normaliseFileName(output.title)}.docx`);
+}
+
+async function exportPdf(output: OutputCard) {
+  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+  const pdf = await PDFDocument.create();
+  const titleFont = await pdf.embedFont(StandardFonts.TimesRomanBold);
+  const bodyFont = await pdf.embedFont(StandardFonts.Helvetica);
+  const margin = 54;
+  let page = pdf.addPage([595, 842]);
+  let y = 780;
+  page.drawText(output.title, { x: margin, y, size: 19, font: titleFont, color: rgb(0.08, 0.08, 0.16) });
+  y -= 28;
+  page.drawText(output.subtitle, { x: margin, y, size: 10, font: bodyFont, color: rgb(0.28, 0.3, 0.38) });
+  y -= 28;
+
+  const lines = plainTextForOutput(output).split('\n').flatMap((line) => wrapLine(line, 88));
+  for (const line of lines) {
+    if (y < 62) {
+      page.drawText(`${pdf.getPageCount()}`, { x: 520, y: 28, size: 9, font: bodyFont, color: rgb(0.45, 0.45, 0.5) });
+      page = pdf.addPage([595, 842]);
+      y = 780;
     }
+    page.drawText(line || ' ', { x: margin, y, size: 10.5, font: bodyFont, color: rgb(0.12, 0.13, 0.16) });
+    y -= line ? 16 : 10;
+  }
+  page.drawText(`${pdf.getPageCount()}`, { x: 520, y: 28, size: 9, font: bodyFont, color: rgb(0.45, 0.45, 0.5) });
 
-    const doc = new Document({ sections: [{ children }] });
-    const blob = await Packer.toBlob(doc);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${plan.title.replace(/\s+/g, '_')}.docx`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const bytes = await pdf.save();
+  const arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  downloadBlob(new Blob([arrayBuffer], { type: 'application/pdf' }), `${normaliseFileName(output.title)}.pdf`);
+}
 
-  const handleExportPPTX = async () => {
-    const PptxGenJS = (await import('pptxgenjs')).default;
-    const pptx = new PptxGenJS();
-    pptx.title = plan.title;
+function finalLines(content: string) {
+  return content.replace(/\|/g, ' | ').split('\n');
+}
 
-    for (let i = 0; i < plan.sections.length; i++) {
-      const section = plan.sections[i];
-      const slide = pptx.addSlide();
-      slide.addText(section.label, { x: 0.5, y: 0.5, w: '90%', fontSize: 24, bold: true, color: '333333' });
-      slide.addText(section.content || '(No content yet)', { x: 0.5, y: 1.2, w: '90%', fontSize: 14, color: '666666' });
+function wrapLine(line: string, limit: number) {
+  if (line.length <= limit) return [line];
+  const words = line.split(' ');
+  const lines: string[] = [];
+  let current = '';
+  words.forEach((word) => {
+    if ((current + word).length > limit) {
+      lines.push(current.trim());
+      current = `${word} `;
+    } else {
+      current += `${word} `;
     }
+  });
+  if (current.trim()) lines.push(current.trim());
+  return lines;
+}
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const url = await (pptx.write as any)('blob');
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${plan.title.replace(/\s+/g, '_')}.pptx`;
-    a.click();
-  };
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
-  const handleExportPDF = () => {
-    // Print-friendly approach
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html>
-<html><head><title>${plan.title}</title>
-<style>
-  body { font-family: system-ui, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; color: #333; }
-  h1 { font-size: 24px; border-bottom: 2px solid #6366F1; padding-bottom: 8px; }
-  h2 { font-size: 18px; color: #6366F1; margin-top: 24px; }
-  h3 { font-size: 14px; color: #888; }
-  p { line-height: 1.6; }
-  ul { padding-left: 20px; }
-  li { margin-bottom: 4px; }
-  .section { margin-bottom: 20px; }
-</style></head><body>
-<h1>${plan.title}</h1>
-${plan.sections.map(s => `
-<div class="section">
-  <h2>${s.label}</h2>
-  <div style="white-space:pre-wrap">${s.content || '(No content yet)'}</div>
-</div>`).join('')}
-</body></html>`);
-    printWindow.document.close();
-    printWindow.print();
-  };
+function exportLogsCsv(logs: EmailLog[]) {
+  const rows = [
+    ['Student', 'Class', 'Date', 'Intent Type', 'Actions Taken', 'Subject'],
+    ...logs.map((log) => [log.student, log.className, log.date, log.intentType, log.actionsTaken.join('; '), log.subject]),
+  ];
+  const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), 'teachwise-email-action-logs.csv');
+}
+
+function CommandPalette({
+  open,
+  onClose,
+  onSelect,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (command: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const filtered = commands.filter((item) => `${item.command} ${item.label} ${item.hint}`.toLowerCase().includes(query.toLowerCase()));
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--color-accent)' }}>
-            <FileText className="h-3.5 w-3.5" />
-            Live Unit Draft
-          </div>
-          <h3 className="truncate text-lg font-bold text-white">Generated plan</h3>
-          <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            Edit, export, or keep refining with the chat.
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            onClick={handleExportDOCX}
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold transition-all hover:bg-white/10"
-            style={{ color: 'var(--color-text-secondary)' }}
-            title="Export DOCX"
-          >
-            DOCX
-          </button>
-          <button
-            onClick={handleExportPPTX}
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold transition-all hover:bg-white/10"
-            style={{ color: 'var(--color-text-secondary)' }}
-            title="Export PPTX"
-          >
-            PPTX
-          </button>
-          <button
-            onClick={handleExportPDF}
-            className="rounded-lg border border-white/10 bg-white/[0.04] p-2 transition-all hover:bg-white/10"
-            style={{ color: 'var(--color-text-secondary)' }}
-            title="Print / PDF"
-          >
-            <Download className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-white/10 bg-white/[0.04] p-2 transition-all hover:bg-white/10"
-            style={{ color: 'var(--color-text-secondary)' }}
-            title="Close panel"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-4 rounded-2xl border border-white/10 bg-gradient-to-br from-teal-400/15 via-sky-400/10 to-amber-400/10 p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--color-text-muted)' }}>Plan title</p>
-        <p className="mt-1 text-sm font-semibold leading-6 text-white">{plan.title}</p>
-      </div>
-
-      <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-        {plan.sections.map((section) => (
-          <div key={section.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] shadow-[0_18px_50px_rgba(2,8,23,0.22)]">
-            <div
-              className="flex items-center justify-between gap-3 px-4 py-3"
-              style={{ backgroundColor: `${getSectionColor(section.type)}18`, borderBottom: `1px solid ${getSectionColor(section.type)}2f` }}
-            >
-              <div className="flex min-w-0 items-center gap-2">
-                {(() => {
-                  const SectionIcon = getSectionIcon(section.type);
-                  return <SectionIcon className="h-4 w-4 shrink-0" style={{ color: getSectionColor(section.type) }} />;
-                })()}
-                <span className="truncate text-xs font-bold uppercase tracking-[0.12em]" style={{ color: getSectionColor(section.type) }}>
-                  {section.label}
-                </span>
-              </div>
-              <button
-                onClick={() => startEdit(section)}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold transition-all hover:bg-white/10"
-                style={{ color: 'var(--color-text-secondary)' }}
-              >
-                <PenLine className="h-3 w-3" />
-                Edit
-              </button>
+    <AnimatePresence>
+      {open && (
+        <motion.div className="fixed inset-0 z-50 grid place-items-start bg-black/45 px-4 pt-[12vh] backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.div className="mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-[#10182c] shadow-[0_32px_100px_rgba(0,0,0,0.4)]" initial={{ scale: 0.98, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.98, y: 12 }}>
+            <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
+              <Search className="h-4 w-4 text-teal-300" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} autoFocus placeholder="Search commands..." className="w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500" />
+              <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button>
             </div>
-
-            <div className="px-4 py-4">
-              {editingId === section.id ? (
-                <div className="space-y-2">
-                  <textarea
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    rows={Math.max(4, editValue.split('\n').length + 1)}
-                    className="w-full resize-none rounded-xl border border-white/10 bg-slate-950/40 px-3 py-3 text-sm leading-6 outline-none"
-                    style={{ color: 'var(--color-text-secondary)' }}
-                    autoFocus
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => saveEdit(section.id)}
-                      className="rounded-lg px-3 py-1.5 text-xs font-semibold"
-                      style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold"
-                      style={{ color: 'var(--color-text-muted)' }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className="chat-output text-sm leading-7"
-                  style={{ color: section.content ? 'var(--color-text-secondary)' : 'var(--color-text-muted)', fontStyle: section.content ? 'normal' : 'italic' }}
-                >
-                  {(section.content || 'No content yet. Click Edit to add content.').split('\n').map((line, index) => (
-                    <p key={index}>{renderInlineMarkdown(line)}</p>
-                  ))}
-                </div>
-              )}
+            <div className="max-h-[420px] overflow-y-auto p-2">
+              {filtered.map((item) => (
+                <button key={item.command} onClick={() => { onSelect(item.command); onClose(); }} className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left transition hover:bg-white/[0.06]">
+                  <span>
+                    <span className="block text-sm font-semibold text-white">{item.label}</span>
+                    <span className="block text-xs text-slate-400">{item.hint}</span>
+                  </span>
+                  <span className="rounded-lg border border-teal-300/20 bg-teal-300/10 px-2 py-1 text-xs font-semibold text-teal-200">{item.command}</span>
+                </button>
+              ))}
             </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function OutputPane({
+  output,
+  isGenerating,
+  logs,
+  onCopy,
+  onEdit,
+  onUpdateReport,
+  onExportDocx,
+  onExportPdf,
+  onRegenerate,
+  onEmailChange,
+  onSave,
+  onSaveEmail,
+}: {
+  output: OutputCard | null;
+  isGenerating: boolean;
+  logs: EmailLog[];
+  onCopy: () => void;
+  onEdit: () => void;
+  onUpdateReport: (reportId: string, comment: string) => void;
+  onExportDocx: () => void;
+  onExportPdf: () => void;
+  onRegenerate: () => void;
+  onEmailChange: (email: EmailDraft) => void;
+  onSave: () => void;
+  onSaveEmail: () => void;
+}) {
+  if (!output && !isGenerating) {
+    return (
+      <div className="grid h-full place-items-center rounded-3xl border border-dashed border-white/15 bg-white/[0.025] p-8 text-center">
+        <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity }} className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-purple-300/25 bg-purple-300/10 text-purple-200">
+          <PanelRightOpen className="h-7 w-7" />
+        </motion.div>
+        <h3 className="text-lg font-bold text-white">Paste content or select a tool</h3>
+        <p className="mt-2 max-w-sm text-sm leading-6 text-slate-400">I&apos;ll take it from here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-full overflow-hidden rounded-3xl border border-white/10 bg-slate-950/30">
+      <div className="pointer-events-none absolute -right-16 top-16 h-72 w-72 animate-premium-pulse rounded-full bg-teal-500/12 blur-3xl" />
+      <div className="relative flex h-full flex-col p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-purple-300/20 bg-purple-300/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-purple-200">
+              <Sparkles className="h-3.5 w-3.5" /> Premium Output
+            </div>
+            <h2 className="text-xl font-bold text-white">{output?.title || 'Generating...'}</h2>
+            <p className="mt-1 text-xs text-slate-400">{output?.subtitle || 'Streaming draft'}</p>
           </div>
-        ))}
+          <div className="flex items-center gap-2">
+            <ActionButton icon={PenLine} label="Edit" onClick={onEdit} />
+            <ActionButton icon={RotateCcw} label="Regenerate" onClick={onRegenerate} />
+            <ActionButton icon={Copy} label="Copy" onClick={onCopy} />
+            <ActionButton icon={FileDown} label="DOCX" onClick={onExportDocx} />
+            <ActionButton icon={Download} label="PDF" onClick={onExportPdf} />
+            <ActionButton icon={Save} label="Save" onClick={onSave} />
+          </div>
+        </div>
+
+        <div className="mb-4 flex flex-wrap gap-2">
+          {polishOptions.map((option) => (
+            <button key={option} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/10">
+              {option}
+            </button>
+          ))}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          {isGenerating && (
+            <div className="mb-4 rounded-2xl border border-teal-300/20 bg-teal-300/10 p-4 text-sm text-teal-100">
+              Drafting<span className="ml-1 animate-blink">▊</span>
+            </div>
+          )}
+          {output?.reports && <ReportCards reports={output.reports} onUpdateReport={onUpdateReport} />}
+          {output?.email && (
+            <EmailCard
+              email={output.email}
+              logs={logs}
+              onChange={onEmailChange}
+              onSave={onSaveEmail}
+            />
+          )}
+          {output && !output.reports && !output.email && <StructuredOutput output={output} />}
+        </div>
       </div>
     </div>
   );
 }
 
-const welcomeMessage = (): Message => ({
-  id: 'welcome',
-  role: 'assistant',
-  content: defaultWelcome,
-  timestamp: new Date(),
-});
-
-const promptSuggestions = [
-  'Year 5 Mathematics unit on fractions and decimals',
-  'Year 3 English persuasive writing lesson sequence',
-  'Build a Science rubric for habitats and adaptations',
-];
-
-const stageLabels = {
-  start: 'Context',
-  topic: 'Topic',
-  scope: 'Scope',
-  building: 'Draft',
-} as const;
-
-function loadPrefs(): TeacherPrefs {
-  if (typeof window === 'undefined') return { name: '', yearLevel: '', subject: '', state: 'NSW' };
-  try {
-    const savedPrefs = localStorage.getItem(STORAGE_KEY);
-    return savedPrefs ? JSON.parse(savedPrefs) : { name: '', yearLevel: '', subject: '', state: 'NSW' };
-  } catch {
-    return { name: '', yearLevel: '', subject: '', state: 'NSW' };
-  }
+function ActionButton({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} title={label} className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-slate-300 transition hover:bg-white/10 disabled:cursor-default disabled:opacity-60">
+      <Icon className="h-3.5 w-3.5" />
+      <span className="hidden xl:inline">{label}</span>
+    </button>
+  );
 }
 
-function loadMessages(): Message[] {
-  if (typeof window === 'undefined') return [welcomeMessage()];
-  try {
-    const savedHistory = localStorage.getItem(HISTORY_KEY);
-    const parsed = savedHistory ? JSON.parse(savedHistory) : null;
-    if (!Array.isArray(parsed) || parsed.length === 0) return [welcomeMessage()];
-    return parsed.map((message: Message) => ({
-      ...message,
-      timestamp: new Date(message.timestamp),
-    }));
-  } catch {
-    return [welcomeMessage()];
-  }
+function ReportCards({ reports, onUpdateReport }: { reports: StudentReport[]; onUpdateReport: (reportId: string, comment: string) => void }) {
+  const formalize = (comment: string) => comment.replace(/\bcan't\b/gi, 'is not yet able to').replace(/\bvery\b/gi, 'highly');
+  const warm = (comment: string) => `It has been a pleasure to see the steady progress shown here. ${comment}`;
+  const shorten = (comment: string) => comment.split('. ').slice(0, 2).join('. ').trim().replace(/\.$/, '') + '.';
+  const compliment = (comment: string) => `${comment} This is a real strength and should be celebrated.`;
+  const actions: Array<{ label: string; transform: (comment: string) => string }> = [
+    { label: 'More formal', transform: formalize },
+    { label: 'Warmer tone', transform: warm },
+    { label: 'Shorter', transform: shorten },
+    { label: 'Add a compliment', transform: compliment },
+  ];
+
+  return (
+    <div className="space-y-3">
+      {reports.map((report, index) => (
+        <motion.div key={report.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-white">{report.name}</h3>
+              <p className="text-xs text-slate-400">{report.subject} report comment</p>
+            </div>
+            <button onClick={() => navigator.clipboard.writeText(report.comment)} className="rounded-lg border border-white/10 p-2 text-slate-300 hover:bg-white/10" title="Copy comment">
+              <Copy className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="text-sm leading-7 text-slate-200">{report.comment}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {actions.map(({ label, transform }) => (
+              <button key={label} onClick={() => onUpdateReport(report.id, transform(report.comment))} className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-slate-400 hover:text-white">
+                {label}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  );
 }
 
-// ─── Main Chat Page ──────────────────────────────────────────────
+function EmailCard({
+  email,
+  logs,
+  onChange,
+  onSave,
+}: {
+  email: EmailDraft;
+  logs: EmailLog[];
+  onChange: (email: EmailDraft) => void;
+  onSave: () => void;
+}) {
+  const setTone = (tone: Tone) => {
+    const refreshed = buildEmailDraft(email.body, tone, { name: '', yearLevel: '', subject: '', state: 'WA' });
+    onChange({ ...email, tone, body: refreshed.body });
+  };
+  const toggleAction = (id: string) => onChange({ ...email, actions: email.actions.map((action) => action.id === id ? { ...action, checked: !action.checked } : action) });
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Intent detected</p>
+            <p className="mt-1 text-lg font-bold text-white">{email.intent}</p>
+          </div>
+          <div className="flex rounded-xl border border-white/10 bg-slate-950/35 p-1">
+            {(['Warm', 'Formal', 'Brief'] as Tone[]).map((tone) => (
+              <button key={tone} onClick={() => setTone(tone)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${email.tone === tone ? 'bg-teal-400 text-slate-950' : 'text-slate-400 hover:text-white'}`}>
+                {tone}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-slate-950/35 p-4">
+          <p className="text-xs text-slate-400">To</p>
+          <p className="mb-3 text-sm font-semibold text-white">{email.to}</p>
+          <p className="text-xs text-slate-400">Subject</p>
+          <p className="mb-3 text-sm font-semibold text-white">{email.subject}</p>
+          <textarea value={email.body} onChange={(event) => onChange({ ...email, body: event.target.value })} rows={8} className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm leading-6 text-slate-200 outline-none" />
+          <div className="mt-3 flex gap-2">
+            <button onClick={() => navigator.clipboard.writeText(email.body)} className="inline-flex items-center gap-2 rounded-xl bg-teal-400 px-3 py-2 text-xs font-bold text-slate-950"><Copy className="h-3.5 w-3.5" /> Copy</button>
+            <a href={`mailto:?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-white/10"><Mail className="h-3.5 w-3.5" /> Open in Client</a>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+        <p className="mb-3 text-sm font-bold text-white">Action checklist</p>
+        <div className="space-y-2">
+          {email.actions.map((action) => (
+            <label key={action.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-slate-950/25 px-3 py-2 text-sm text-slate-300">
+              <input type="checkbox" checked={action.checked} onChange={() => toggleAction(action.id)} className="h-4 w-4 accent-teal-400" />
+              {action.label}
+            </label>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button onClick={onSave} className="inline-flex items-center gap-2 rounded-xl bg-teal-400 px-3 py-2 text-xs font-bold text-slate-950"><Save className="h-3.5 w-3.5" /> Save Actions</button>
+          <button onClick={() => onChange({ ...email, actions: email.actions.map((action) => ({ ...action, checked: false })) })} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-white/10">Clear</button>
+          <button onClick={() => exportLogsCsv(logs)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-white/10"><Table2 className="h-3.5 w-3.5" /> Export CSV</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StructuredOutput({ output }: { output: OutputCard }) {
+  const sections = output.content.split(/\n(?=#{1,3}\s|[A-Z][A-Za-z ]+\n)/).filter(Boolean);
+  const tabs = output.kind === 'lesson' ? ['Overview', 'Lessons', 'Assessment', 'Differentiation'] : [];
+  const [tab, setTab] = useState(tabs[0] || '');
+  const visibleSections = tabs.length
+    ? sections.filter((section) => {
+        const lower = section.toLowerCase();
+        if (tab === 'Overview') return /learning intention|success criteria|overview/.test(lower);
+        if (tab === 'Lessons') return /lesson sequence|hook|explicit|guided|independent/.test(lower);
+        if (tab === 'Assessment') return /assessment|rubric|evidence/.test(lower);
+        if (tab === 'Differentiation') return /differentiation|support|extension|eald/.test(lower);
+        return true;
+      })
+    : sections;
+
+  return (
+    <div className="space-y-3">
+      {tabs.length > 0 && (
+        <div className="flex gap-2 rounded-2xl border border-white/10 bg-white/[0.035] p-1">
+          {tabs.map((item) => (
+            <button key={item} onClick={() => setTab(item)} className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold ${tab === item ? 'bg-teal-400 text-slate-950' : 'text-slate-400 hover:text-white'}`}>
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
+      {(visibleSections.length ? visibleSections : [output.content]).map((section, index) => (
+        <motion.div key={`${output.id}-${index}`} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+          <div className="whitespace-pre-wrap text-sm leading-7 text-slate-200">{section.replace(/^#{1,3}\s/gm, '')}</div>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>(loadMessages);
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [showPrefs, setShowPrefs] = useState(false);
   const [prefs, setPrefs] = useState<TeacherPrefs>(loadPrefs);
-  const [conversationStage, setConversationStage] = useState<'start' | 'topic' | 'scope' | 'building' | 'done'>('start');
-  const [voiceListening, setVoiceListening] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [planPanelOpen, setPlanPanelOpen] = useState(false);
-  const [activePlan, setActivePlan] = useState<ActivePlan | null>(null);
-  const [dividerDragging, setDividerDragging] = useState(false);
-  const [leftPaneWidth, setLeftPaneWidth] = useState(50); // percentage
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [input, setInput] = useState('');
+  const [selectedCommand, setSelectedCommand] = useState(commands[0]);
+  const [commandIndex, setCommandIndex] = useState(0);
+  const [output, setOutput] = useState<OutputCard | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [leftPaneWidth, setLeftPaneWidth] = useState(48);
+  const [dragging, setDragging] = useState(false);
+  const [lastInput, setLastInput] = useState('');
+  const [logs, setLogs] = useState<EmailLog[]>(loadLogs);
+  const [savedOutputs, setSavedOutputs] = useState(loadSavedOutputs);
+  const [workspaceStatus, setWorkspaceStatus] = useState<'loading' | 'saving' | 'synced' | 'local'>('loading');
   const containerRef = useRef<HTMLDivElement>(null);
+  const hydratedWorkspaceRef = useRef(false);
+  const initialLocalSnapshotRef = useRef<WorkspaceSnapshot>({
+    prefs: normalisePrefs(prefs),
+    messages: serialiseMessages(messages),
+    savedOutputs,
+    emailLogs: logs,
+    updatedAt: new Date().toISOString(),
+  });
+  const suggestion = detectSuggestion(input);
+  const matchingCommands = useMemo(() => commands.filter((item) => item.command.startsWith(input.trim().toLowerCase()) || item.label.toLowerCase().includes(input.trim().replace('/', '').toLowerCase())).slice(0, 6), [input]);
 
-  useEffect(() => {
-    if (messages.length > 1) {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(messages));
+  const persistWorkspace = useCallback(async (snapshot: Partial<WorkspaceSnapshot>) => {
+    setWorkspaceStatus((current) => current === 'loading' ? current : 'saving');
+    try {
+      const response = await fetch(WORKSPACE_ENDPOINT, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(snapshot),
+      });
+      if (!response.ok) throw new Error('Workspace save failed');
+      setWorkspaceStatus('synced');
+    } catch {
+      setWorkspaceStatus('local');
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateWorkspace = async () => {
+      try {
+        const response = await fetch(WORKSPACE_ENDPOINT, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Workspace request failed');
+        const snapshot = await response.json() as WorkspaceSnapshot;
+        if (cancelled) return;
+
+        if (hasWorkspaceData(snapshot)) {
+          setPrefs(normalisePrefs(snapshot.prefs));
+          setMessages(rehydrateMessages(snapshot.messages));
+          setSavedOutputs(snapshot.savedOutputs || []);
+          setLogs((snapshot.emailLogs || []) as EmailLog[]);
+        } else {
+          const localSnapshot = initialLocalSnapshotRef.current;
+          if (hasWorkspaceData(localSnapshot)) {
+            void persistWorkspace(localSnapshot);
+          }
+        }
+
+        hydratedWorkspaceRef.current = true;
+        setWorkspaceStatus('synced');
+      } catch {
+        hydratedWorkspaceRef.current = true;
+        setWorkspaceStatus('local');
+      }
+    };
+
+    void hydrateWorkspace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [persistWorkspace]);
+
+  useEffect(() => {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(messages));
   }, [messages]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+  }, [prefs]);
 
-  // Divider drag logic
   useEffect(() => {
-    if (!dividerDragging) return;
+    localStorage.setItem(SAVED_OUTPUTS_KEY, JSON.stringify(savedOutputs));
+  }, [savedOutputs]);
 
-    const handleMouseMove = (e: MouseEvent) => {
+  useEffect(() => {
+    localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+  }, [logs]);
+
+  useEffect(() => {
+    if (!hydratedWorkspaceRef.current) return;
+    const timeoutId = window.setTimeout(() => {
+      void persistWorkspace({
+        prefs,
+        messages: serialiseMessages(messages),
+        savedOutputs,
+        emailLogs: logs,
+      });
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [logs, messages, persistWorkspace, prefs, savedOutputs]);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (event: MouseEvent) => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
-      const rawPercent = ((e.clientX - rect.left) / rect.width) * 100;
-      const percent = Math.min(Math.max(rawPercent, 25), 75);
-      setLeftPaneWidth(percent);
+      const percent = ((event.clientX - rect.left) / rect.width) * 100;
+      const snapped = [25, 50, 75].find((snap) => Math.abs(snap - percent) < 4);
+      setLeftPaneWidth(Math.min(75, Math.max(25, snapped || percent)));
     };
-
-    const handleMouseUp = () => setDividerDragging(false);
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    const onUp = () => setDragging(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
     };
-  }, [dividerDragging]);
+  }, [dragging]);
 
-  const savePrefs = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-    setShowPrefs(false);
-  };
-
-  const handleSend = useCallback(async (promptText?: string) => {
-    const text = promptText || input;
-    if (!text.trim()) return;
-
-    if (text.toLowerCase().includes('year') || text.match(/\d/)) setConversationStage('topic');
-    else if (text.toLowerCase().includes('topic') || text.toLowerCase().includes('teach')) setConversationStage('scope');
-
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text, timestamp: new Date() };
-    setMessages((prev) => [...prev, userMsg]);
+  const handleGenerate = useCallback(async (override?: string) => {
+    const prompt = override ?? input;
+    if (!prompt.trim() || isGenerating) return;
+    const command = detectCommand(prompt);
+    const cleanPrompt = prompt.replace(new RegExp(`^${command.command}\\s*`, 'i'), '').trim() || prompt;
+    setSelectedCommand(command);
+    setLastInput(prompt);
     setInput('');
-    setIsTyping(true);
+    setIsGenerating(true);
+
+    const userMessage: Message = { id: `${Date.now()}u`, role: 'user', content: prompt, timestamp: new Date() };
+    setMessages((prev) => [...prev, userMessage]);
 
     try {
-      const conversationHistory = messages.map(m => ({ role: m.role, content: m.content }));
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...conversationHistory, { role: 'user', content: text }],
+          messages: [...messages, userMessage].map((message) => ({ role: message.role, content: message.content })),
           teacherPrefs: prefs,
+          tool: command.label,
         }),
       });
-
       const data = await response.json();
-      const aiContent = data.response;
-
-      // Detect if response looks like a unit plan
-      const looksLikePlan =
-        /\{\{SECTION:/.test(aiContent) ||  // XML markers = definitely a plan
-        /AC9[A-Z0-9]+/i.test(aiContent) ||
-        (/Lesson\s+\d+/i.test(aiContent) && /WALT|TIB|WILF/i.test(aiContent)) ||
-        (/Unit\s*(Plan|Overview|Structure)/i.test(aiContent) && /Lesson/i.test(aiContent));
-
-      if (looksLikePlan) {
-        const plan = parsePlanFromMarkdown(aiContent, prefs.yearLevel || '', prefs.subject || '', '');
-        setActivePlan(plan);
-        setPlanPanelOpen(true);
-      }
-
-      const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: aiContent, timestamp: new Date() };
-      setMessages((prev) => [...prev, aiMsg]);
+      const content = response.ok ? data.response : '';
+      const nextOutput = createOutput(command.kind, content, cleanPrompt, prefs, 'Warm');
+      setOutput(nextOutput);
+      setMessages((prev) => [...prev, { id: `${Date.now()}a`, role: 'assistant', content: plainTextForOutput(nextOutput), timestamp: new Date() }]);
     } catch {
-      setTimeout(() => {
-        const aiMsg: Message = {
-          id: (Date.now() + 1).toString(), role: 'assistant',
-          content: "I'm here and ready to help you plan! What year level and subject are you working with?",
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, aiMsg]);
-      }, 1500);
+      const nextOutput = createOutput(command.kind, fallbackContent(command.kind, cleanPrompt, prefs), cleanPrompt, prefs, 'Warm');
+      setOutput(nextOutput);
+      setMessages((prev) => [...prev, { id: `${Date.now()}a`, role: 'assistant', content: plainTextForOutput(nextOutput), timestamp: new Date() }]);
     } finally {
-      setIsTyping(false);
+      setIsGenerating(false);
     }
-  }, [input, messages, prefs]);
+  }, [input, isGenerating, messages, prefs]);
 
-  const toggleVoice = useCallback(() => {
-    if (voiceListening) {
-      recognitionRef.current?.stop();
-      setVoiceListening(false);
+  useEffect(() => {
+    const handleKey = (event: globalThis.KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setPaletteOpen(true);
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        event.preventDefault();
+        void handleGenerate();
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'e') {
+        event.preventDefault();
+        if (output) void exportDocx(output);
+      }
+      if (event.key === 'Escape') setInput('');
+      if (event.key === 'ArrowUp' && !input) setInput(lastInput);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [handleGenerate, input, lastInput, output]);
+
+  const updateEmail = (email: EmailDraft) => {
+    if (!output) return;
+    setOutput({ ...output, email });
+  };
+
+  const saveEmailLog = async () => {
+    if (!output?.email) return;
+    const log: EmailLog = {
+      student: output.email.student,
+      className: output.email.className,
+      date: new Date().toISOString().slice(0, 10),
+      intentType: output.email.intent,
+      actionsTaken: output.email.actions.filter((action) => action.checked).map((action) => action.label),
+      subject: output.email.subject,
+    };
+    setLogs((current) => [log, ...current]);
+    await fetch('/api/email-actions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(log),
+    }).catch(() => undefined);
+  };
+
+  const copyOutput = () => {
+    if (output) void navigator.clipboard.writeText(plainTextForOutput(output));
+  };
+
+  const editOutput = () => {
+    if (!output) return;
+    setInput(plainTextForOutput(output));
+  };
+
+  const saveOutput = () => {
+    if (!output) return;
+    if (output.email) {
+      void saveEmailLog();
       return;
     }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) { alert('Speech recognition not supported'); return; }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = 'en-AU';
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
-        else setTranscript(event.results[i][0].transcript);
-      }
-      if (finalTranscript) {
-        setInput(finalTranscript);
-        setVoiceListening(false);
-        setTranscript('');
-        handleSend(finalTranscript);
-      }
-    };
-
-    recognition.onend = () => { setVoiceListening(false); setTranscript(''); };
-    recognition.onerror = () => { setVoiceListening(false); setTranscript(''); };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-    setVoiceListening(true);
-  }, [handleSend, voiceListening]);
-
-  const clearHistory = () => {
-    setMessages([welcomeMessage()]);
-    localStorage.removeItem(HISTORY_KEY);
-    setConversationStage('start');
-    setActivePlan(null);
-    setPlanPanelOpen(false);
+    setSavedOutputs((prev) => [{
+      kind: output.kind,
+      title: output.title,
+      savedAt: new Date().toISOString(),
+      content: plainTextForOutput(output),
+    }, ...prev].slice(0, 20));
   };
 
-  const renderMessage = (content: string, role: Message['role']) => {
-    return content.split('\n').map((line, i) => {
-      const normalizedLine = line.replace(/^•\s*/, '- ');
-      if (normalizedLine.startsWith('### ')) {
-        return <h4 key={i} className="mt-5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-bold text-white">{normalizedLine.replace('### ', '')}</h4>;
-      }
-      if (normalizedLine.startsWith('## ')) {
-        return <h3 key={i} className="mt-5 text-base font-bold" style={{ color: role === 'user' ? 'white' : 'var(--color-accent)' }}>{normalizedLine.replace('## ', '')}</h3>;
-      }
-      if (normalizedLine.startsWith('# ')) {
-        return <h2 key={i} className="mt-5 text-lg font-bold text-white">{normalizedLine.replace('# ', '')}</h2>;
-      }
-      if (normalizedLine.startsWith('**') && normalizedLine.endsWith('**') && !normalizedLine.includes('**', 2)) {
-        return <p key={i} className="mt-3 text-sm font-bold text-white">{normalizedLine.replace(/\*\*/g, '')}</p>;
-      }
-      if (normalizedLine.startsWith('- ') || normalizedLine.startsWith('* ')) {
-        const text = normalizedLine.replace(/^[-*]\s*/, '');
-        return (
-          <li key={i} className="my-2 flex gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-sm leading-6" style={{ color: role === 'user' ? 'rgba(255,255,255,0.9)' : 'var(--color-text-secondary)' }}>
-            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: role === 'user' ? 'white' : 'var(--color-accent)' }} />
-            <span>{renderInlineMarkdown(text)}</span>
-          </li>
-        );
-      }
-      if (normalizedLine.match(/^\d+\.\s/)) {
-        const num = normalizedLine.match(/^(\d+)\./)?.[1] || '1';
-        const text = normalizedLine.replace(/^\d+\.\s*/, '');
-        return (
-          <li key={i} className="my-2 flex gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-sm leading-6" style={{ color: role === 'user' ? 'rgba(255,255,255,0.9)' : 'var(--color-text-secondary)' }}>
-            <span className="flex h-6 min-w-6 items-center justify-center rounded-full text-xs font-bold" style={{ backgroundColor: role === 'user' ? 'rgba(255,255,255,0.18)' : 'var(--color-accent-dim)', color: role === 'user' ? 'white' : 'var(--color-accent)' }}>{num}</span>
-            <span>{renderInlineMarkdown(text)}</span>
-          </li>
-        );
-      }
-      if (normalizedLine.startsWith('```')) return null;
-      if (normalizedLine.trim() === '') return <div key={i} className="h-2" />;
-      return (
-        <p key={i} className="my-2 text-sm leading-7" style={{ color: role === 'user' ? 'rgba(255,255,255,0.92)' : 'var(--color-text-secondary)' }}>
-          {renderInlineMarkdown(normalizedLine)}
-        </p>
-      );
-    });
+  const selectCommand = (command: string) => {
+    const item = commands.find((candidate) => candidate.command === command) || commands[0];
+    setSelectedCommand(item);
+    setInput(`${command} `);
   };
 
-  const handlePlanUpdate = (updated: ActivePlan) => {
-    setActivePlan(updated);
+  const commandBarKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Tab' && input.startsWith('/')) {
+      event.preventDefault();
+      const nextIndex = (commandIndex + 1) % Math.max(1, matchingCommands.length);
+      setCommandIndex(nextIndex);
+      if (matchingCommands[nextIndex]) setInput(`${matchingCommands[nextIndex].command} `);
+      return;
+    }
+    if (event.key === 'Enter' && input.startsWith('/') && matchingCommands[0] && !event.shiftKey) {
+      event.preventDefault();
+      setInput(`${matchingCommands[0].command} `);
+      setSelectedCommand(matchingCommands[0]);
+      return;
+    }
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      void handleGenerate();
+    }
   };
 
   return (
-    <div className="chat-workspace flex h-[calc(100vh-9rem)] min-h-[640px] animate-fade-in gap-3" ref={containerRef}>
-      {/* ── LEFT PANE: Chat ── */}
-      <div
-        className="flex h-full min-h-0 flex-shrink-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950/30 p-4 shadow-[0_28px_90px_rgba(2,8,23,0.32)]"
-        style={{
-          width: planPanelOpen ? `${leftPaneWidth}%` : '100%',
-          transition: dividerDragging ? 'none' : 'width 0.2s ease',
-        }}
-      >
-        <div className="mb-4 flex items-start justify-between gap-4 rounded-2xl border border-white/10 bg-gradient-to-br from-teal-400/14 via-sky-400/8 to-amber-400/10 p-4">
-          <div className="min-w-0">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-teal-300/20 bg-teal-300/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--color-accent)' }}>
-              <Sparkles className="h-3.5 w-3.5" />
-              AC9 Co-planner
-            </div>
-            <h2 className="flex items-center gap-2 text-2xl font-bold leading-tight text-white">
-              Unit Planning Assistant
-            </h2>
-            <p className="mt-2 text-sm leading-6" style={{ color: 'var(--color-text-secondary)' }}>
-              {prefs.yearLevel && prefs.subject ? `${prefs.yearLevel} ${prefs.subject}` : 'Start a conversation'}
-              {prefs.name && ` — ${prefs.name}`}
-            </p>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <button
-              onClick={() => setShowPrefs(!showPrefs)}
-              className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.06] p-2.5 text-sm transition-all hover:bg-white/10"
-              style={{ color: 'var(--color-text-secondary)' }}
-              title="Teacher preferences"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
-            <button
-              onClick={clearHistory}
-              className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold transition-all hover:bg-white/10"
-              style={{ color: 'var(--color-text-secondary)' }}
-            >
-              <Trash2 className="h-3.5 w-3.5" /> Clear
-            </button>
-          </div>
-        </div>
-
-        <AnimatePresence>
-          {showPrefs && (
-            <motion.div
-              layout
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="mb-4 overflow-hidden"
-            >
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-[0_18px_50px_rgba(2,8,23,0.2)]">
-                <h3 className="mb-3 text-sm font-bold text-white">Your Teaching Context</h3>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div>
-                    <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Your Name</label>
-                    <input type="text" value={prefs.name} onChange={(e) => setPrefs({ ...prefs, name: e.target.value })}
-                      placeholder="Optional" className="w-full rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2.5 text-sm text-white outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-muted)' }}>State</label>
-                    <select value={prefs.state} onChange={(e) => setPrefs({ ...prefs, state: e.target.value })}
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2.5 text-sm text-white outline-none">
-                      {['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'].map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Year Level</label>
-                    <select value={prefs.yearLevel} onChange={(e) => setPrefs({ ...prefs, yearLevel: e.target.value })}
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2.5 text-sm text-white outline-none">
-                      <option value="">Select year level</option>
-                      {['F', '1', '2', '3', '4', '5', '6'].map(y => <option key={y} value={y}>Year {y}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs mb-1 block" style={{ color: 'var(--color-text-muted)' }}>Subject</label>
-                    <select value={prefs.subject} onChange={(e) => setPrefs({ ...prefs, subject: e.target.value })}
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2.5 text-sm text-white outline-none">
-                      <option value="">Select subject</option>
-                      {['English', 'Mathematics', 'Science', 'HASS', 'The Arts', 'Health & PE', 'Technologies'].map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <button onClick={savePrefs} className="mt-3 rounded-xl px-4 py-2.5 text-sm font-bold transition-all"
-                  style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}>
-                  Save Preferences
-                </button>
+    <div className="h-[calc(100vh-9rem)] min-h-[680px] animate-fade-in" ref={containerRef}>
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onSelect={selectCommand} />
+      <div className="grid h-full grid-cols-1 gap-3 xl:flex">
+        <section className="flex min-h-0 w-full flex-col rounded-3xl border border-white/10 bg-slate-950/30 p-4 shadow-[0_28px_90px_rgba(2,8,23,0.32)]" style={{ flexBasis: `${leftPaneWidth}%` }}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-gradient-to-br from-teal-400/14 via-sky-400/8 to-purple-400/12 p-4">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-teal-300/20 bg-teal-300/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-teal-200">
+                <Sparkles className="h-3.5 w-3.5" /> TeachWise Premium
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="mb-4 grid grid-cols-4 gap-2 text-xs">
-          {(['start', 'topic', 'scope', 'building'] as const).map((stage, i) => (
-            <div
-              key={stage}
-              className="rounded-2xl border px-3 py-2 transition-all"
-              style={conversationStage === stage ? { backgroundColor: 'var(--color-accent-dim)', borderColor: 'rgba(20,184,166,0.38)', color: 'var(--color-accent)' } : { backgroundColor: 'rgba(255,255,255,0.035)', borderColor: 'rgba(255,255,255,0.08)', color: 'var(--color-text-muted)' }}
-            >
-              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em]">0{i + 1}</div>
-              <div className="font-semibold">{stageLabels[stage]}</div>
+              <h1 className="text-2xl font-bold text-white">Smart teaching workspace</h1>
+              <p className="mt-1 text-sm text-slate-300">{prefs.name ? `Good ${new Date().getHours() < 12 ? 'morning' : 'afternoon'} ${prefs.name}. ` : ''}{prefs.yearLevel && prefs.subject ? `Year ${prefs.yearLevel} ${prefs.subject} today?` : 'Set context once and every draft inherits it.'}</p>
             </div>
-          ))}
-        </div>
-
-        <div className="chat-thread mb-4 flex-1 space-y-5 overflow-y-auto rounded-3xl border border-white/10 bg-slate-950/35 p-4">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              {msg.role === 'assistant' && (
-                <div className="mt-1 hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-teal-300/20 bg-teal-300/12 sm:flex" style={{ color: 'var(--color-accent)' }}>
-                  <Bot className="h-4 w-4" />
-                </div>
-              )}
-              <div
-                className={`chat-bubble max-w-[100%] rounded-3xl px-5 py-4 sm:max-w-[88%] ${msg.role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'}`}
-                style={{
-                  background: msg.role === 'user'
-                    ? 'linear-gradient(135deg, #14b8a6, #0f766e)'
-                    : 'linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.035))',
-                  border: msg.role === 'user' ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.10)',
-                  boxShadow: '0 18px 50px rgba(2,8,23,0.22)',
-                }}
-              >
-                <div className="mb-3 flex items-center justify-between gap-4">
-                  <div className="inline-flex items-center gap-2 text-xs font-bold" style={{ color: msg.role === 'user' ? 'rgba(255,255,255,0.78)' : 'var(--color-accent)' }}>
-                    {msg.role === 'user' ? <UserRound className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
-                    {msg.role === 'user' ? (prefs.name || 'You') : 'TeachWise AI'}
-                  </div>
-                  <div className="text-[11px]" style={{ color: msg.role === 'user' ? 'rgba(255,255,255,0.65)' : 'var(--color-text-muted)' }}>
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-                <div className="chat-output text-white">
-                  {renderMessage(msg.content, msg.role)}
-                </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-300">
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    workspaceStatus === 'synced'
+                      ? 'bg-teal-300'
+                      : workspaceStatus === 'saving'
+                        ? 'bg-amber-300'
+                        : workspaceStatus === 'loading'
+                          ? 'bg-slate-400'
+                          : 'bg-purple-300'
+                  }`}
+                />
+                {workspaceStatus === 'synced'
+                  ? 'Workspace saved'
+                  : workspaceStatus === 'saving'
+                    ? 'Saving'
+                    : workspaceStatus === 'loading'
+                      ? 'Loading workspace'
+                      : 'Local fallback'}
               </div>
-              {msg.role === 'user' && (
-                <div className="mt-1 hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] sm:flex" style={{ color: 'var(--color-text-secondary)' }}>
-                  <UserRound className="h-4 w-4" />
-                </div>
-              )}
-            </div>
-          ))}
-
-          {isTyping && (
-            <div className="flex justify-start gap-3">
-              <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-teal-300/20 bg-teal-300/12" style={{ color: 'var(--color-accent)' }}>
-                <Bot className="h-4 w-4" />
-              </div>
-              <div className="rounded-3xl rounded-bl-md border border-white/10 bg-white/[0.05] px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--color-accent)', animationDelay: '300ms' }} />
-                  </div>
-                  <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Planning your unit...</span>
-                </div>
-              </div>
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-
-        <AnimatePresence>
-          {activePlan && !planPanelOpen && (
-            <motion.div
-              layout
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="mb-3 overflow-hidden"
-            >
-              <button
-                onClick={() => setPlanPanelOpen(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-teal-300/20 bg-teal-300/15 py-3 text-sm font-bold transition-all hover:bg-teal-300/20"
-                style={{ color: 'var(--color-accent)' }}
-              >
-                <FileText className="w-4 h-4" />
-                View & Edit Unit Plan
-                <ChevronRight className="w-4 h-4" />
+              <button onClick={() => setPaletteOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-200 hover:bg-white/10">
+                <Search className="h-4 w-4" /> Cmd K
               </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </div>
 
-        {messages.length <= 1 && (
-          <div className="mb-3 flex flex-wrap gap-2">
-            {promptSuggestions.map((suggestion) => (
-              <button
-                key={suggestion}
-                onClick={() => setInput(suggestion)}
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold transition-all hover:bg-white/10"
-                style={{ color: 'var(--color-text-secondary)' }}
-              >
-                <Wand2 className="h-3.5 w-3.5" />
-                {suggestion}
+          <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <select value={prefs.yearLevel || ''} onChange={(event) => setPrefs({ ...prefs, yearLevel: event.target.value })} className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2.5 text-sm text-white">
+              <option value="">Year level</option>
+              {['F', '1', '2', '3', '4', '5', '6'].map((year) => <option key={year} value={year}>Year {year}</option>)}
+            </select>
+            <select value={prefs.subject || ''} onChange={(event) => setPrefs({ ...prefs, subject: event.target.value })} className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2.5 text-sm text-white">
+              <option value="">Subject</option>
+              {recentSubjects.map((subject) => <option key={subject} value={subject}>{subject}</option>)}
+            </select>
+            <input value={prefs.name || ''} onChange={(event) => setPrefs({ ...prefs, name: event.target.value })} placeholder="Teacher name" className="rounded-xl border border-white/10 bg-slate-950/35 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-500" />
+          </div>
+
+          <div className="mb-4 flex flex-wrap gap-2">
+            {commands.slice(0, 9).map((item) => (
+              <button key={item.command} onClick={() => selectCommand(item.command)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${selectedCommand.command === item.command ? 'border-teal-300/30 bg-teal-300/15 text-teal-100' : 'border-white/10 bg-white/[0.035] text-slate-400 hover:text-white'}`}>
+                {item.command}
               </button>
             ))}
           </div>
-        )}
 
-        <div className="flex items-end gap-3 rounded-3xl border border-white/10 bg-white/[0.05] p-2 shadow-[0_18px_50px_rgba(2,8,23,0.18)]">
-          <div className="flex-1 relative">
-            {(voiceListening || transcript) && (
-              <div className="absolute -top-9 left-2 right-2 flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs animate-pulse-glow"
-                style={{ backgroundColor: 'var(--color-accent-dim)', color: 'var(--color-accent)' }}>
-                <Mic className="w-3 h-3" />{transcript || 'Listening...'}
+          <div className="mb-4 min-h-0 flex-1 overflow-y-auto rounded-3xl border border-white/10 bg-slate-950/35 p-4">
+            {messages.length === 0 ? (
+              <div className="grid h-full min-h-[260px] place-items-center text-center">
+                <div>
+                  <Archive className="mx-auto mb-3 h-10 w-10 text-slate-500" />
+                  <h2 className="text-lg font-bold text-white">No session yet</h2>
+                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">Try /report with student assessment notes, /email with a pasted parent message, or /sub for a relief teacher plan.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.slice(-8).map((message) => (
+                  <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : message.role === 'system' ? 'justify-center' : 'justify-start'}`}>
+                    <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === 'user' ? 'border-l-2 border-teal-200 bg-slate-900 text-white shadow-[0_12px_40px_rgba(20,184,166,0.12)]' : message.role === 'system' ? 'bg-transparent text-center text-xs text-slate-500' : 'border-l-2 border-purple-300 bg-white/[0.06] text-slate-200'}`}>
+                      <div className="mb-1 flex items-center gap-2 text-xs font-bold text-slate-400">
+                        {message.role === 'assistant' ? <Bot className="h-3.5 w-3.5" /> : <Clipboard className="h-3.5 w-3.5" />}
+                        {message.role === 'user' ? 'You' : 'TeachWise'}
+                      </div>
+                      <p className="line-clamp-6 whitespace-pre-wrap">{message.content}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-            <textarea value={input} onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-              placeholder="Tell me what you want to teach..." rows={1}
-              className="max-h-32 w-full resize-none rounded-2xl border border-transparent bg-transparent px-4 py-3 text-sm leading-6 text-white outline-none transition-all placeholder:text-slate-500" />
           </div>
-          <button onClick={toggleVoice}
-            className={`flex-shrink-0 rounded-2xl border border-white/10 p-3.5 transition-all hover:bg-white/10 ${voiceListening ? 'animate-pulse-glow' : ''}`}
-            style={{ backgroundColor: voiceListening ? 'var(--color-accent)' : 'rgba(255,255,255,0.04)', color: voiceListening ? 'white' : 'var(--color-text-muted)' }}
-            title={voiceListening ? 'Stop listening' : 'Start voice input'}>
-            {voiceListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-          </button>
-          <button onClick={() => handleSend()} disabled={(!input.trim() && !transcript) || isTyping}
-            className="flex items-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #14b8a6, #0f766e)', color: 'white' }}>
-            <Send className="w-4 h-4" /> Send
-          </button>
-        </div>
-      </div>
 
-      {/* ── DIVIDER ── */}
-      <AnimatePresence>
-        {planPanelOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="group relative flex-shrink-0 cursor-col-resize"
-            style={{ width: 8, backgroundColor: 'transparent' }}
-            onMouseDown={() => setDividerDragging(true)}
-          >
-            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1 rounded-full transition-all"
-              style={{
-                backgroundColor: dividerDragging ? 'var(--color-accent)' : 'var(--color-border)',
-                opacity: dividerDragging ? 1 : 0.5,
-              }} />
-            <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-white/5 transition-all" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── RIGHT PANE: Plan Editor ── */}
-      <AnimatePresence>
-        {planPanelOpen && activePlan && (
-          <motion.div
-            initial={{ flexBasis: 0, opacity: 0 }}
-            animate={{ flexBasis: '100%', opacity: 1 }}
-            exit={{ flexBasis: 0, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="flex-1 overflow-hidden rounded-3xl border border-white/10 bg-slate-950/30 shadow-[0_28px_90px_rgba(2,8,23,0.26)]"
-          >
-            <div className="h-full w-full min-w-[360px] p-5">
-              <PlanEditorPanel
-                plan={activePlan}
-                onClose={() => setPlanPanelOpen(false)}
-                onUpdate={handlePlanUpdate}
-              />
+          {suggestion && (
+            <div className="mb-3 flex items-center justify-between rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+              <span>{suggestion}</span>
+              <button onClick={() => void handleGenerate()} className="rounded-lg bg-amber-300 px-3 py-1 text-xs font-bold text-slate-950">Yes</button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+
+          {input.startsWith('/') && matchingCommands.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {matchingCommands.map((item) => (
+                <button key={item.command} onClick={() => selectCommand(item.command)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-left text-xs text-slate-300 hover:bg-white/10">
+                  <span className="font-bold text-teal-200">{item.command}</span> {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-2 shadow-[0_18px_50px_rgba(2,8,23,0.18)]">
+            <div className="mb-2 flex flex-wrap items-center gap-2 px-2 pt-1">
+              {recentSubjects.map((subject) => (
+                <button key={subject} onClick={() => setPrefs({ ...prefs, subject })} className="rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[11px] font-semibold text-slate-400 hover:text-white">{subject}</button>
+              ))}
+            </div>
+            <div className="flex items-end gap-2">
+              <textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={commandBarKeyDown} rows={2} placeholder="/report paste assessment data, /email paste a parent email, or ask for anything..." className="max-h-36 min-h-14 flex-1 resize-none rounded-2xl border border-transparent bg-transparent px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-slate-500" />
+              <button onClick={() => void handleGenerate()} disabled={!input.trim() || isGenerating} className="inline-flex h-12 items-center gap-2 rounded-2xl bg-teal-400 px-4 text-sm font-bold text-slate-950 transition hover:bg-teal-300 disabled:cursor-not-allowed disabled:opacity-45">
+                <Send className="h-4 w-4" /> Generate
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <div onMouseDown={() => setDragging(true)} className="group hidden w-3 cursor-col-resize items-center justify-center xl:flex" title="Drag divider">
+          <div className={`flex h-24 w-1 items-center justify-center rounded-full bg-gradient-to-b from-teal-300 via-purple-300 to-amber-300 transition-all group-hover:w-2 ${dragging ? 'w-2' : ''}`}>
+            <GripVertical className="h-4 w-4 text-white/70" />
+          </div>
+        </div>
+
+        <section className="min-h-0 flex-1">
+          <OutputPane
+            output={output}
+            isGenerating={isGenerating}
+            logs={logs}
+            onCopy={copyOutput}
+            onEdit={editOutput}
+            onUpdateReport={(reportId, comment) => {
+              if (!output?.reports) return;
+              setOutput({
+                ...output,
+                reports: output.reports.map((report) => report.id === reportId ? { ...report, comment } : report),
+              });
+            }}
+            onExportDocx={() => output && void exportDocx(output)}
+            onExportPdf={() => output && void exportPdf(output)}
+            onRegenerate={() => lastInput && void handleGenerate(lastInput)}
+            onEmailChange={updateEmail}
+            onSave={saveOutput}
+            onSaveEmail={saveEmailLog}
+          />
+        </section>
+      </div>
     </div>
   );
 }
