@@ -2,7 +2,9 @@
 
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ClipboardList, Copy, Printer, Loader2 } from 'lucide-react';
+import { ClipboardList, Copy, Loader2, Download, FileText } from 'lucide-react';
+import { recordActivity } from '@/app/lib/teachwise-store';
+import { exportTeachWiseDocx, exportTeachWisePptx, exportTeachWisePdf, rubricTextToExportContent } from '@/app/lib/exporters';
 
 function LoadingSpinner() {
   return (
@@ -19,24 +21,6 @@ const YEAR_LEVELS = ['F', '1', '2', '3', '4', '5', '6'];
 const SUBJECTS = ['English', 'Mathematics', 'Science', 'HASS', 'Digital Technologies', 'Health'];
 const RUBRIC_TYPES = ['analytic', 'holistic'];
 const LEVEL_COUNTS = ['3', '4', '5'];
-
-const RUBRIC_SYSTEM_PROMPT = `You are **TeachWise AI**, an expert at creating assessment rubrics aligned to the Australian Curriculum v9 (AC9).
-
-When asked to generate a rubric, create a well-structured table with:
-- Clear criteria rows (based on the topic and subject)
-- Level descriptors across columns (e.g., Beginning/Developing/Extending for 3 levels, or Beginning/Developing/Proficient/Extending for 4 levels, or Beginning/Developing/Proficient/Accomplished/Extending for 5 levels)
-- Specific, observable descriptors at each level
-- AC9 content descriptors where relevant
-
-**OUTPUT FORMAT REQUIRED:**
-Return the rubric as a markdown table with this exact structure:
-
-| Criterion | Level 1 | Level 2 | Level 3 | (add more columns based on level count) |
-|-----------|---------|---------|---------|--------|
-| Criterion name | Descriptor for Level 1 | Descriptor for Level 2 | Descriptor for Level 3 | ... |
-| ... more criteria rows ... | ... | ... | ... | ... |
-
-Make each descriptor specific, observable, and tied to the AC9 achievement standards for the year level. Use student-friendly language.`;
 
 function RubricsContent() {
   const searchParams = useSearchParams();
@@ -62,25 +46,27 @@ function RubricsContent() {
     setIsLoading(true);
     setResult('');
 
-    const levelDesc = levelCount === '3' ? '3 levels' : levelCount === '4' ? '4 levels' : '5 levels';
-
-    const userPrompt = `Create a ${rubricType} rubric for ${subject} at Year ${yearLevel} level on the topic: "${topic}". Use ${levelDesc}.`;
-
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/api/ai/rubric', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [
-            { role: 'user', content: userPrompt }
-          ],
-          teacherPrefs: { yearLevel: `Year ${yearLevel}`, subject },
-          customSystemPrompt: RUBRIC_SYSTEM_PROMPT
+          yearLevel: `Year ${yearLevel}`,
+          subject,
+          topic,
+          rubricType,
+          levelCount: Number(levelCount),
         })
       });
 
       const data = await response.json();
       setResult(data.response || 'No response received.');
+      recordActivity({
+        type: 'rubric_created',
+        title: 'Rubric created',
+        detail: `${yearLevel ? `Year ${yearLevel}` : 'F-6'} ${subject} - ${topic}`,
+        minutesReclaimed: 12,
+      });
     } catch {
       setResult('Error generating rubric. Please try again.');
     } finally {
@@ -95,7 +81,7 @@ function RubricsContent() {
   };
 
   const handlePrint = () => {
-    window.print();
+    void exportTeachWisePdf(exportContent);
   };
 
   const parseRubricTable = (text: string): { headers: string[]; rows: string[][] } | null => {
@@ -114,16 +100,58 @@ function RubricsContent() {
   };
 
   const parsed = result ? parseRubricTable(result) : null;
+  const exportContent = rubricTextToExportContent(
+    `TeachWise Rubric ${yearLevel ? `- Year ${yearLevel}` : ''} ${subject ? `- ${subject}` : ''}`.trim(),
+    result,
+    parsed || undefined,
+    topic ? `${subject} ${topic}`.trim() : undefined
+  );
+
+  const handleExport = async (type: 'docx' | 'pptx' | 'pdf') => {
+    if (type === 'docx') {
+      await exportTeachWiseDocx(exportContent);
+    } else if (type === 'pptx') {
+      await exportTeachWisePptx(exportContent);
+    } else {
+      await exportTeachWisePdf(exportContent);
+    }
+    recordActivity({
+      type: 'exported',
+      title: 'Rubric exported',
+      detail: type.toUpperCase(),
+      minutesReclaimed: 0,
+    });
+  };
 
   return (
-    <div className="max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-          <ClipboardList className="w-6 h-6" style={{ color: 'var(--color-accent)' }} />
-          Rubric Generator
-        </h2>
-        <p className="mt-1" style={{ color: 'var(--color-text-muted)' }}>Create aligned assessment rubrics for Australian F-6 classrooms</p>
+    <div className="mx-auto max-w-5xl">
+      <div className="app-toolbar mb-6 rounded-[28px] p-5 md:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="export-chip mb-3 w-fit">
+              <ClipboardList className="h-3.5 w-3.5" />
+              Rubric Builder
+            </div>
+            <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">Assessment rubrics that look ready to hand to another teacher.</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-7" style={{ color: 'var(--color-text-secondary)' }}>
+              Build analytic or holistic rubrics, align them to AC9, and export immediately to PDF, DOCX, or PowerPoint.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => void handleExport('docx')} className="export-chip">
+              <FileText className="h-3.5 w-3.5" />
+              DOCX
+            </button>
+            <button onClick={() => void handleExport('pptx')} className="export-chip">
+              <Download className="h-3.5 w-3.5" />
+              PPTX
+            </button>
+            <button onClick={() => void handleExport('pdf')} className="export-chip">
+              <Download className="h-3.5 w-3.5" />
+              PDF
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Form */}
@@ -260,22 +288,31 @@ function RubricsContent() {
               <ClipboardList className="w-4 h-4" style={{ color: 'var(--color-accent)' }} />
               Generated Rubric
             </h3>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={copyToClipboard}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
-                style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                className="export-chip"
               >
                 <Copy className="w-4 h-4" />
                 {copied ? '✓ Copied!' : 'Copy'}
               </button>
               <button
-                onClick={handlePrint}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
-                style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                onClick={() => void handleExport('docx')}
+                className="export-chip"
               >
-                <Printer className="w-4 h-4" />
-                Print
+                DOCX
+              </button>
+              <button
+                onClick={() => void handleExport('pptx')}
+                className="export-chip"
+              >
+                PPTX
+              </button>
+              <button
+                onClick={handlePrint}
+                className="export-chip"
+              >
+                PDF
               </button>
             </div>
           </div>

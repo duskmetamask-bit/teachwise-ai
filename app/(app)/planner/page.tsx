@@ -13,7 +13,16 @@ import {
   Lightbulb,
   Mic,
   MicOff,
+  Download,
+  FileText,
 } from 'lucide-react';
+import { recordActivity } from '@/app/lib/teachwise-store';
+import {
+  exportTeachWiseDocx,
+  exportTeachWisePptx,
+  exportTeachWisePdf,
+  lessonBlocksToExportContent,
+} from '@/app/lib/exporters';
 
 // ─── Block Types ────────────────────────────────────────────────
 const BLOCK_TYPES = [
@@ -298,7 +307,7 @@ function BlockItem({ block, onUpdate, onDelete, onGenerate }: {
 // ─── Block Library Panel ─────────────────────────────────────────
 function BlockLibrary({ onAdd }: { onAdd: (type: BlockType, rect: DOMRect) => void }) {
   return (
-    <div className="w-80 flex-shrink-0">
+    <div className="w-full flex-shrink-0 lg:w-80">
       <h3 className="text-sm font-medium text-white mb-3">Block Library</h3>
       <div className="space-y-1.5">
         {BLOCK_TYPES.map((bt) => (
@@ -323,6 +332,17 @@ function BlockLibrary({ onAdd }: { onAdd: (type: BlockType, rect: DOMRect) => vo
 // ─── Main Planner Page ───────────────────────────────────────────
 export default function PlannerPage() {
   const [blocks, setBlocks] = useState<Block[]>(loadBlocks);
+  const exportBlocks = blocks.map((block) => ({
+    id: block.id,
+    type: block.type,
+    label: getBlockMeta(block.type).label,
+    content: block.content,
+  }));
+  const exportContent = lessonBlocksToExportContent(
+    'TeachWise Lesson Plan',
+    exportBlocks,
+    'Editable lesson structure for Australian F-6 classrooms'
+  );
 
   const updateBlock = useCallback((id: string, content: string) => {
     setBlocks((prev) => {
@@ -363,17 +383,21 @@ export default function PlannerPage() {
     } catch {}
 
     const blockMeta = getBlockMeta(type);
-    const prompt = `Generate content for a "${blockMeta.label}" block for a lesson plan.
-${classContext ? `Class context: ${JSON.stringify(classContext)}` : ''}
-Respond with only the content, no markdown formatting beyond basic lists.`;
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/api/ai/lesson-block', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: prompt }],
+          blockType: type,
+          currentContent: blockMeta.label,
+          topic: (classContext as Record<string, string>)?.topicsCovered || blockMeta.label,
+          yearLevel: (classContext as Record<string, string>)?.yearLevel || '',
+          subject: (classContext as Record<string, string>)?.subject || '',
           classContext,
+          teacherPrefs: {
+            state: (classContext as Record<string, string>)?.state || 'WA',
+          },
         }),
       });
       const data = await response.json();
@@ -383,6 +407,12 @@ Respond with only the content, no markdown formatting beyond basic lists.`;
       setBlocks((prev) =>
         prev.map((b) => (b.id === id ? { ...b, content: generated, generating: false } : b))
       );
+      recordActivity({
+        type: 'lesson_planned',
+        title: `${blockMeta.label} generated`,
+        detail: classContext ? `For ${JSON.stringify(classContext)}` : 'Planner block drafted',
+        minutesReclaimed: 8,
+      });
     } catch {
       setBlocks((prev) =>
         prev.map((b) => (b.id === id ? { ...b, generating: false } : b))
@@ -396,49 +426,88 @@ Respond with only the content, no markdown formatting beyond basic lists.`;
     saveBlocks(newOrder);
   }, []);
 
+  const handleExport = useCallback(async (type: 'docx' | 'pptx' | 'pdf') => {
+    if (type === 'docx') {
+      await exportTeachWiseDocx(exportContent);
+    } else if (type === 'pptx') {
+      await exportTeachWisePptx(exportContent);
+    } else {
+      await exportTeachWisePdf(exportContent);
+    }
+    recordActivity({
+      type: 'exported',
+      title: 'Lesson plan exported',
+      detail: type.toUpperCase(),
+      minutesReclaimed: 0,
+    });
+  }, [exportContent]);
+
   return (
-    <div className="flex gap-6 animate-fade-in h-full">
-      {/* Block Library */}
-      <BlockLibrary onAdd={addBlock} />
-
-      {/* Block Stack */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Lesson Plan</h2>
-          <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            {blocks.length} block{blocks.length !== 1 ? 's' : ''}
-          </span>
+    <div className="animate-fade-in space-y-5">
+      <div className="app-toolbar rounded-[28px] p-5 md:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <div className="export-chip mb-3 w-fit">
+              <BookOpen className="h-3.5 w-3.5" />
+              Lesson Planner
+            </div>
+            <h2 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">A clean, block-based plan that teachers can actually use.</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-7" style={{ color: 'var(--color-text-secondary)' }}>
+              Build a lesson or unit flow, generate blocks individually, and export the final plan to PDF, DOCX, or PowerPoint without leaving the page.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => void handleExport('docx')} className="export-chip">
+              <FileText className="h-3.5 w-3.5" />
+              DOCX
+            </button>
+            <button onClick={() => void handleExport('pptx')} className="export-chip">
+              <Download className="h-3.5 w-3.5" />
+              PPTX
+            </button>
+            <button onClick={() => void handleExport('pdf')} className="export-chip">
+              <Download className="h-3.5 w-3.5" />
+              PDF
+            </button>
+          </div>
         </div>
+      </div>
 
-        <Reorder.Group
-          axis="y"
-          values={blocks}
-          onReorder={handleReorder}
-          className="space-y-3"
-        >
-          <AnimatePresence>
-            {blocks.map((block) => (
-              <Reorder.Item key={block.id} value={block}>
-                <BlockItem
-                  block={block}
-                  onUpdate={updateBlock}
-                  onDelete={deleteBlock}
-                  onGenerate={handleGenerate}
-                />
-              </Reorder.Item>
-            ))}
-          </AnimatePresence>
-        </Reorder.Group>
+      <div className="flex h-full flex-col gap-6 lg:flex-row">
+        <BlockLibrary onAdd={addBlock} />
 
-        {/* Add block button */}
-        <button
-          onClick={() => addBlock('hook')}
-          className="mt-4 w-full py-3 rounded-xl border-2 border-dashed text-sm flex items-center justify-center gap-2 transition-all"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
-        >
-          <Plus className="w-4 h-4" />
-          Add Block
-        </button>
+        <div className="min-w-0 flex-1">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">Lesson stack</h2>
+            <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              {blocks.length} block{blocks.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <Reorder.Group axis="y" values={blocks} onReorder={handleReorder} className="space-y-3">
+            <AnimatePresence>
+              {blocks.map((block) => (
+                <Reorder.Item key={block.id} value={block}>
+                  <BlockItem
+                    block={block}
+                    onUpdate={updateBlock}
+                    onDelete={deleteBlock}
+                    onGenerate={handleGenerate}
+                  />
+                </Reorder.Item>
+              ))}
+            </AnimatePresence>
+          </Reorder.Group>
+
+          <button
+            onClick={() => addBlock('hook')}
+            className="mt-4 w-full rounded-2xl border border-dashed px-4 py-3 text-sm font-medium transition-all"
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)', backgroundColor: 'rgba(255,255,255,0.02)' }}
+          >
+            <Plus className="mr-2 inline h-4 w-4" />
+            Add Block
+          </button>
+        </div>
       </div>
     </div>
   );
