@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { mergeWorkspaceSnapshot, readWorkspaceSnapshot } from '@/app/lib/server/workspaceStore';
+import { appendEmailLogForRequest } from '@/app/lib/server/workspaceRepository';
 
 interface EmailActionLog {
   student: string;
@@ -18,10 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required log fields' }, { status: 400 });
     }
 
-    const snapshot = await readWorkspaceSnapshot();
-    await mergeWorkspaceSnapshot({
-      emailLogs: [log, ...snapshot.emailLogs],
-    });
+    const snapshot = await appendEmailLogForRequest(log);
 
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
@@ -30,7 +27,7 @@ export async function POST(req: NextRequest) {
     if (!supabaseUrl || !supabaseKey) {
       return NextResponse.json({
         ok: true,
-        stored: 'server-file',
+        stored: snapshot.storageMode || 'server-file',
         mirroredToSupabase: false,
         message: 'Supabase environment variables are not configured, so the log was stored in the local workspace file.',
       });
@@ -60,7 +57,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Supabase insert failed' }, { status: 502 });
     }
 
-    return NextResponse.json({ ok: true, stored: 'server-file', mirroredToSupabase: true });
+    return NextResponse.json({ ok: true, stored: snapshot.storageMode || 'server-file', mirroredToSupabase: true });
   } catch (error) {
     console.error('Email action log error:', error);
     return NextResponse.json({ error: 'Unable to save action log' }, { status: 500 });

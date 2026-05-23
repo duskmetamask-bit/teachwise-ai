@@ -6,27 +6,35 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Archive,
   Bot,
+  BookOpenCheck,
   Clipboard,
   Copy,
   Download,
+  FileClock,
   FileDown,
   GripVertical,
+  Lightbulb,
   Mail,
+  MonitorSmartphone,
   PanelRightOpen,
   PenLine,
+  Rocket,
   RotateCcw,
   Save,
   Search,
   Send,
   Sparkles,
   Table2,
+  TimerReset,
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
+  AuthSessionSummary,
   EmailActionLog,
   SavedOutputRecord,
   TeacherPrefs,
+  WorkspaceApiSnapshot,
   WorkspaceMessage,
   WorkspaceSnapshot,
 } from '@/app/lib/types';
@@ -103,6 +111,17 @@ const commands: Array<{ id: CommandId; command: string; label: string; hint: str
 
 const polishOptions = ['Make it briefer', 'Add detail', 'Add Blooms tags', 'Australian format'];
 const recentSubjects = ['English', 'Science', 'Mathematics', 'HASS'];
+const smartRuns = [
+  { title: 'Parent concern reply', note: 'Intent detect, draft, log, export', icon: Mail },
+  { title: 'Report sprint', note: 'Paste notes and generate polished comments', icon: FileClock },
+  { title: 'Relief plan handover', note: 'Turn tomorrow into a timed sub plan', icon: TimerReset },
+];
+const teacherSignals = [
+  { label: 'Focus', value: 'Report Writer', icon: Rocket },
+  { label: 'Ready next', value: 'Email log export', icon: Table2 },
+  { label: 'Mode', value: 'Split workspace', icon: MonitorSmartphone },
+];
+const shortcutHints = ['Cmd K', 'Cmd Enter', 'Cmd E', 'Arrow Up'];
 
 function loadPrefs(): TeacherPrefs {
   if (typeof window === 'undefined') return DEFAULT_PREFS;
@@ -572,6 +591,114 @@ function ActionButton({ icon: Icon, label, onClick }: { icon: LucideIcon; label:
   );
 }
 
+function WorkflowRail({
+  prefs,
+  savedOutputs,
+  logs,
+  input,
+  onSelectCommand,
+}: {
+  prefs: TeacherPrefs;
+  savedOutputs: SavedOutputRecord[];
+  logs: EmailLog[];
+  input: string;
+  onSelectCommand: (command: string) => void;
+}) {
+  return (
+    <aside className="teacher-grid-rail">
+      <div className="teachwise-surface rounded-3xl p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-teal-200">Teacher runway</p>
+            <h3 className="mt-1 text-base font-semibold text-white">Built for the next 30 minutes</h3>
+          </div>
+          <Lightbulb className="h-4 w-4 text-amber-300" />
+        </div>
+        <div className="space-y-3">
+          {smartRuns.map((item) => (
+            <button
+              key={item.title}
+              onClick={() => onSelectCommand(item.title.includes('Parent') ? '/email' : item.title.includes('Report') ? '/report' : '/sub')}
+              className="flex w-full items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.03] p-3 text-left transition hover:bg-white/[0.06]"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-teal-200">
+                <item.icon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white">{item.title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">{item.note}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="teachwise-surface rounded-3xl p-4">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Session intelligence</p>
+        <div className="mt-4 grid gap-3">
+          {teacherSignals.map((signal) => (
+            <div key={signal.label} className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-teal-200">
+                  <signal.icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">{signal.label}</p>
+                  <p className="text-sm font-semibold text-white">{signal.value}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+          <div className="insight-card rounded-2xl p-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-teal-100">Inherited context</p>
+            <p className="mt-2 text-sm text-white">
+              {prefs.yearLevel && prefs.subject
+                ? `Year ${prefs.yearLevel} ${prefs.subject} stays attached to every new draft.`
+                : 'Set year level and subject once so the next draft starts sharper.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="teachwise-surface rounded-3xl p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Recent memory</p>
+          <span className="text-xs text-slate-500">{savedOutputs.length} saved</span>
+        </div>
+        <div className="space-y-2">
+          {savedOutputs.slice(0, 3).map((item, index) => (
+            <div key={`${item.title}-${index}`} className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
+              <p className="text-sm font-semibold text-white">{item.title}</p>
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-400">{item.content}</p>
+            </div>
+          ))}
+          {savedOutputs.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.02] p-3 text-sm text-slate-500">
+              Saved outputs will stack here once you start keeping your strongest drafts.
+            </div>
+          )}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {shortcutHints.map((hint) => (
+            <span key={hint} className="focus-chip">{hint}</span>
+          ))}
+        </div>
+        <div className="mt-4 rounded-2xl border border-white/8 bg-white/[0.03] p-3 text-sm text-slate-400">
+          {logs.length ? `${logs.length} email action logs are ready for meeting prep or compliance export.` : 'No email logs yet. The first saved parent workflow will appear here.'}
+        </div>
+      </div>
+
+      <div className="teachwise-surface rounded-3xl p-4">
+        <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+          <BookOpenCheck className="h-4 w-4 text-teal-200" />
+          Smart paste
+        </div>
+        <p className="text-sm text-white">{input.trim() ? 'TeachWise is already reading this as a likely workflow trigger.' : 'Paste assessment notes, a parent email, or tomorrow’s rough lesson notes to trigger a suggested command.'}</p>
+      </div>
+    </aside>
+  );
+}
+
 function ReportCards({ reports, onUpdateReport }: { reports: StudentReport[]; onUpdateReport: (reportId: string, comment: string) => void }) {
   const formalize = (comment: string) => comment.replace(/\bcan't\b/gi, 'is not yet able to').replace(/\bvery\b/gi, 'highly');
   const warm = (comment: string) => `It has been a pleasure to see the steady progress shown here. ${comment}`;
@@ -727,6 +854,7 @@ export default function ChatPage() {
   const [logs, setLogs] = useState<EmailLog[]>(loadLogs);
   const [savedOutputs, setSavedOutputs] = useState(loadSavedOutputs);
   const [workspaceStatus, setWorkspaceStatus] = useState<'loading' | 'saving' | 'synced' | 'local'>('loading');
+  const [authSession, setAuthSession] = useState<AuthSessionSummary>({ configured: false, user: null });
   const containerRef = useRef<HTMLDivElement>(null);
   const hydratedWorkspaceRef = useRef(false);
   const initialLocalSnapshotRef = useRef<WorkspaceSnapshot>({
@@ -757,11 +885,22 @@ export default function ChatPage() {
   useEffect(() => {
     let cancelled = false;
 
+    const loadAuthSession = async () => {
+      try {
+        const response = await fetch('/api/auth/session', { cache: 'no-store' });
+        if (!response.ok) return;
+        const session = await response.json() as AuthSessionSummary;
+        if (!cancelled) setAuthSession(session);
+      } catch {
+        if (!cancelled) setAuthSession({ configured: false, user: null });
+      }
+    };
+
     const hydrateWorkspace = async () => {
       try {
         const response = await fetch(WORKSPACE_ENDPOINT, { cache: 'no-store' });
         if (!response.ok) throw new Error('Workspace request failed');
-        const snapshot = await response.json() as WorkspaceSnapshot;
+        const snapshot = await response.json() as WorkspaceApiSnapshot;
         if (cancelled) return;
 
         if (hasWorkspaceData(snapshot)) {
@@ -777,13 +916,14 @@ export default function ChatPage() {
         }
 
         hydratedWorkspaceRef.current = true;
-        setWorkspaceStatus('synced');
+        setWorkspaceStatus(snapshot.storageMode === 'supabase-auth-required' ? 'local' : 'synced');
       } catch {
         hydratedWorkspaceRef.current = true;
         setWorkspaceStatus('local');
       }
     };
 
+    void loadAuthSession();
     void hydrateWorkspace();
 
     return () => {
@@ -981,6 +1121,9 @@ export default function ChatPage() {
               </div>
               <h1 className="text-2xl font-bold text-white">Smart teaching workspace</h1>
               <p className="mt-1 text-sm text-slate-300">{prefs.name ? `Good ${new Date().getHours() < 12 ? 'morning' : 'afternoon'} ${prefs.name}. ` : ''}{prefs.yearLevel && prefs.subject ? `Year ${prefs.yearLevel} ${prefs.subject} today?` : 'Set context once and every draft inherits it.'}</p>
+              {authSession.configured && !authSession.user && (
+                <p className="mt-2 text-xs text-amber-100">Sign in to move this workspace into your hosted Supabase account.</p>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-300">
@@ -1006,6 +1149,27 @@ export default function ChatPage() {
               <button onClick={() => setPaletteOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-bold text-slate-200 hover:bg-white/10">
                 <Search className="h-4 w-4" /> Cmd K
               </button>
+            </div>
+          </div>
+
+          <div className="mb-4 grid gap-3 lg:grid-cols-3">
+            <div className="teachwise-surface rounded-2xl p-3 lg:col-span-2">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Today&apos;s command deck</p>
+                <span className="text-xs text-slate-500">Teacher-first workflow</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {commands.slice(0, 6).map((item) => (
+                  <button key={item.command} onClick={() => selectCommand(item.command)} className="focus-chip">
+                    {item.command} {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="teachwise-surface rounded-2xl p-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Flow</p>
+              <p className="mt-2 text-sm font-semibold text-white">Paste → detect → draft → export</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">The whole screen is tuned for short bursts, not long setup.</p>
             </div>
           </div>
 
@@ -1088,32 +1252,41 @@ export default function ChatPage() {
         </section>
 
         <div onMouseDown={() => setDragging(true)} className="group hidden w-3 cursor-col-resize items-center justify-center xl:flex" title="Drag divider">
-          <div className={`flex h-24 w-1 items-center justify-center rounded-full bg-gradient-to-b from-teal-300 via-purple-300 to-amber-300 transition-all group-hover:w-2 ${dragging ? 'w-2' : ''}`}>
+          <div className={`glass-divider flex h-24 w-1 items-center justify-center rounded-full transition-all group-hover:w-2 ${dragging ? 'w-2' : ''}`}>
             <GripVertical className="h-4 w-4 text-white/70" />
           </div>
         </div>
 
         <section className="min-h-0 flex-1">
-          <OutputPane
-            output={output}
-            isGenerating={isGenerating}
-            logs={logs}
-            onCopy={copyOutput}
-            onEdit={editOutput}
-            onUpdateReport={(reportId, comment) => {
-              if (!output?.reports) return;
-              setOutput({
-                ...output,
-                reports: output.reports.map((report) => report.id === reportId ? { ...report, comment } : report),
-              });
-            }}
-            onExportDocx={() => output && void exportDocx(output)}
-            onExportPdf={() => output && void exportPdf(output)}
-            onRegenerate={() => lastInput && void handleGenerate(lastInput)}
-            onEmailChange={updateEmail}
-            onSave={saveOutput}
-            onSaveEmail={saveEmailLog}
-          />
+          <div className="teacher-grid h-full">
+            <OutputPane
+              output={output}
+              isGenerating={isGenerating}
+              logs={logs}
+              onCopy={copyOutput}
+              onEdit={editOutput}
+              onUpdateReport={(reportId, comment) => {
+                if (!output?.reports) return;
+                setOutput({
+                  ...output,
+                  reports: output.reports.map((report) => report.id === reportId ? { ...report, comment } : report),
+                });
+              }}
+              onExportDocx={() => output && void exportDocx(output)}
+              onExportPdf={() => output && void exportPdf(output)}
+              onRegenerate={() => lastInput && void handleGenerate(lastInput)}
+              onEmailChange={updateEmail}
+              onSave={saveOutput}
+              onSaveEmail={saveEmailLog}
+            />
+            <WorkflowRail
+              prefs={prefs}
+              savedOutputs={savedOutputs}
+              logs={logs}
+              input={input}
+              onSelectCommand={selectCommand}
+            />
+          </div>
         </section>
       </div>
     </div>

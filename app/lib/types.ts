@@ -57,6 +57,20 @@ export interface WorkspaceSnapshot {
   updatedAt: string;
 }
 
+export type WorkspaceStorageMode = 'file' | 'supabase' | 'supabase-auth-required';
+
+export interface WorkspaceApiSnapshot extends WorkspaceSnapshot {
+  storageMode?: WorkspaceStorageMode;
+}
+
+export interface AuthSessionSummary {
+  configured: boolean;
+  user: {
+    id: string;
+    email: string | null;
+  } | null;
+}
+
 export interface UnitPlan {
   id: string;
   title: string;
